@@ -19,6 +19,9 @@ from config import config
 thispath = os.path.dirname(os.path.realpath(__file__))
 BASEPATH = os.path.join(thispath)
 
+if not os.path.exists(config['LOGS_DIRECTORY']):
+    os.mkdir(config['LOGS_DIRECTORY'])
+
 app = Flask(__name__)
 app.url_map.strict_slashes = False
 
@@ -29,12 +32,14 @@ status = {}
 # Helpers
 #
 def notice(shortname, message):
-    status[shortname]['console'] += "\n>>> %s\n" % message
+    status[shortname]['console'].append("\n>>> %s\n" % message)
 
 def execute(shortname, target, command):
-    for line in target.exec_run(command, stream=True):
+    dockid = target.id[0:10]
+
+    for line in target.exec_run(command, stream=True, stderr=True):
         # debug to console
-        print("[%s] %s" % (target, line.strip().decode('utf-8')))
+        print("[%s] %s" % (dockid, line.strip().decode('utf-8')))
 
         # append to status
         status[shortname]['console'].append(line.decode('utf-8'))
@@ -48,44 +53,62 @@ def consoleof(console):
 
     return output
 
+def imagefrom(client, repository, branch):
+    for image in client.images.list():
+        if len(image.tags) == 0:
+            continue
+
+        # checking if we have a tag which start with the branch
+        temp = image.tags[0].split(':')
+        name = temp[0]
+        tag  = temp[1]
+
+        # this image have nothing to do with this repo
+        if name != repository:
+            continue
+
+        # this image is not the right version
+        if branch.startswith(tag):
+            return image
+
+    return None
+
+#
+# build status
+#
+def buildsuccess(shortname):
+    status[shortname]['status'] = 'success'
+    status[shortname]['ended'] = int(time.time())
+    return "OK"
+
+def builderror(shortname, message):
+    status[shortname]['status'] = 'error'
+    status[shortname]['error'] = message
+    status[shortname]['ended'] = int(time.time())
+    return "FAILED"
+
 #
 # Extract the kernel from a container
 # if release is True, kernel is compiled from initramfs
 # otherwise it's compiled from a core change
 #
-def kernel(target, branch, release):
-    stream, stat = target.get_archive('/target')
-
+def kernel(tmpdir, branch, release):
     # format kernel "g8os-BRANCH-generic.efi" if it's a release
     suffix = '-generic' if release else ""
     kname = "g8os-%s%s.efi" % (branch, suffix)
 
-    print("[+] exporting kernel: %s", kname)
+    print("[+] exporting kernel: %s" % kname)
 
-    with tempfile.TemporaryDirectory() as tmpdir:
-        archive = os.path.join(tmpdir, "archive.tar")
+    # now we have the kernel on our tmpdir
+    # let's copy it to the right location
+    krnl = os.path.join(tmpdir.name, "vmlinuz.efi")
+    dest = os.path.join(config['KERNEL_TARGET'], kname)
 
-        # downloading archive from docker
-        with open(archive, 'wb') as f:
-            f.write(stream.read())
+    if not os.path.isfile(krnl):
+        return False
 
-        print(tmpdir)
-
-        # extracting archive
-        tar = tarfile.open(archive, 'r')
-        tar.extractall(tmpdir)
-        tar.close()
-
-        # now we have the kernel on our tmpdir
-        # let's copy it to the right location
-        krnl = os.path.join(tmpdir, "target", "vmlinuz.efi")
-        dest = os.path.join(config['KERNEL_TARGET'], kname)
-
-        if not os.path.isfile(krnl):
-            return False
-
-        print("[+] moving kernel into production")
-        os.rename(krnl, dest)
+    print("[+] moving kernel into production")
+    os.rename(krnl, dest)
 
     return True
 
@@ -97,36 +120,107 @@ def event_ping(payload):
     return "OK"
 
 def event_push(payload):
+    # extracting data from payload
     repository = payload['repository']['full_name']
     ref = payload['ref']
     branch = os.path.basename(ref)
-    client = docker.from_env()
     shortname = "%s/%s" % (repository, branch)
 
+    # connecting docker
+    client = docker.from_env()
+
+    # saving full log to a file
+    # logfile = os.path.join(config['LOGS_DIRECTORY']...
+
+    # extract repository name
+    reponame = os.path.basename(repository)
+
     print("[+] repository: %s, branch: %s" % (repository, branch))
+    # creating entry for that build
+    logs[shortname] = ""
+    status[shortname] = {
+        'docker': "",
+        'status': 'preparing',
+        'console': collections.deque(maxlen=20),
+        'started': int(time.time()),
+        'ended': None,
+        'error': None,
+        # 'logfile':
+    }
 
     #
     # This is a little bit hardcoded for our side
     #
-    if repository == "g8os/core0":
-        #
-        pass
-
-    # if repository == "g8os/initramfs":
+    # if repository == "g8os/core0":
     if repository == "maxux/hooktest":
+        baseimage = imagefrom(client, "g8os/initramfs", branch)
+        if not baseimage:
+            return builderror(shortname, 'No base image found for branch: %s' % branch)
+
+        print("[+] base image found: %s" % baseimage.tags)
+
+        # DIRTY HACK
+        repository = "g8os/initramfs"
+        reponame = os.path.basename(repository)
+
+        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
+        print("[+] temporary directory: %s" % tmpdir.name)
+
         #
         # This is a main project, we build it
         # then make a base image from it
         #
-        target = client.containers.run("ubuntu:16.04", tty=True, detach=True)
+        print("[+] starting container")
+        volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
+        target = client.containers.run(baseimage.id, tty=True, detach=True, volumes=volumes)
 
-        # reset logs and setting up status
-        logs[shortname] = ""
-        status[shortname] = {
-            'docker': target.id,
-            'status': 'running',
-            'console': collections.deque(maxlen=20),
-        }
+        status[shortname]['status'] = 'initializing'
+        status[shortname]['docker'] = target.id
+
+        notice(shortname, 'Executing script')
+        status[shortname]['status'] = 'building'
+
+        try:
+            # compiling
+            print(target.status)
+            execute(shortname, target, "sh -c 'cd /initramfs && git pull'")
+            execute(shortname, target, "bash /%s/autobuild/gig-build-submodules.sh %s" % (reponame, branch))
+
+            # extract kernel
+            kernel(tmpdir, branch, False)
+
+            # build well done
+            buildsuccess(shortname)
+
+        except Exception as e:
+            print(e)
+            builderror(shortname, str(e))
+
+        # end of build process
+        target.remove(force=True)
+        tmpdir.cleanup()
+
+        return "OK"
+
+    # if repository == "g8os/initramfs":
+    if repository == "maxux/hooktest":
+        # DIRTY HACK
+        repository = "g8os/initramfs"
+        reponame = os.path.basename(repository)
+
+        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
+        print("[+] temporary directory: %s" % tmpdir.name)
+
+        #
+        # This is a main project, we build it
+        # then make a base image from it
+        #
+        print("[+] starting container")
+        volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
+        target = client.containers.run("ubuntu:16.04", tty=True, detach=True, volumes=volumes)
+
+        status[shortname]['status'] = 'initializing'
+        status[shortname]['docker'] = target.id
 
         notice(shortname, 'Preparing system')
         execute(shortname, target, "apt-get update")
@@ -136,17 +230,33 @@ def event_push(payload):
         execute(shortname, target, "git clone -b '%s' https://github.com/%s" % (branch, repository))
 
         notice(shortname, 'Executing script')
-        remote = os.path.basename(repository)
-        execute(shortname, target, "bash /%s/autobuild/gig-build.sh" % remote)
+        status[shortname]['status'] = 'building'
 
-        kernel(target, branch, True)
+        try:
+            # compiling
+            execute(shortname, target, "bash /%s/autobuild/gig-build.sh" % reponame)
 
-        # create image from that branch
+            # extract kernel
+            kernel(tmpdir, branch, True)
 
+            # commit to baseimage
+            status[shortname]['status'] = 'committing'
+            target.commit(repository, branch)
+
+            # build well done
+            buildsuccess(shortname)
+
+        except Exception as e:
+            print(e)
+            builderror(shortname, str(e))
+
+        # end of build process
         target.remove(force=True)
-        status[shortname]['status'] = 'done'
+        tmpdir.cleanup()
 
-    return "OK"
+        return "OK"
+
+    abort(404)
 
 #
 # Routing
@@ -170,7 +280,10 @@ def global_status():
         output[key] = {
             'status': item['status'],
             'monitor': consoleof(item['console']),
-            'docker': item['docker'][0:8],
+            'docker': item['docker'][0:10],
+            'started': item['started'],
+            'ended': item['ended'],
+            'error': item['error'],
         }
 
     return jsonify(output)
