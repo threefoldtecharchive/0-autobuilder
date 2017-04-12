@@ -6,6 +6,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Build Status</title>
 
+    <link href="https://fonts.googleapis.com/css?family=Poppins" rel="stylesheet">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
     <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
     <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
@@ -52,6 +53,7 @@
         </div>
     </div>
 
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     <script type="text/javascript">
     var statuscolors = {
         'error': 'danger',
@@ -84,17 +86,55 @@
 
         $("#build-" + type).empty();
 
-        for(var idx in data) {
-            var root = $('<div>', {'class': 'panel panel-' + statuscolors[data[idx]['status']]});
+        var zindex = 0;
 
-            // heading
+        for(var idx in data) {
+            zindex++;
+
+            if(data[idx]['commits'].length == 0)
+                continue;
+
+            var rootcommit = data[idx]['commits'][0]['id'].substr(0, 10);
+
+            var root = $('<div>', {'class': 'panel panel-' + statuscolors[data[idx]['status']]});
             var heading = $('<div>', {'class': 'panel-heading'});
-            var title = (type == 'history') ? data[idx]['name'] : idx;
-            heading.append($('<h3>', {'class': 'panel-title'}).html(title));
+
+            //
+            // heading
+            //
+            var title = idx;
+            title = ' <code>[' + rootcommit + ']</code> ' + title;
+
+            // collapsed heading for history
+            if(type == 'history') {
+                var id = "panel-" + zindex + "-" + rootcommit
+                var collapse = {
+                    'role': "button",
+                    'data-toggle': "collapse",
+                    'href': "#" + id,
+                    'aria-expanded': "false",
+                    'aria-controls': id,
+                };
+
+                var lnk = $('<a>', collapse).html(data[idx]['name']);
+                var code = $('<code>').html('[' + rootcommit + ']');
+
+                var title = $('<div>').append(code).append(' ').append(lnk).html();
+            }
+
+            var when = new Date(data[idx]['started'] * 1000);
+            heading.append($('<h3>', {'class': 'panel-title pull-left'}).html(title));
+            heading.append($('<small>', {'class': 'pull-right'}).html(when));
+            heading.append($('<div>', {'class': 'clearfix'}));
             root.append(heading);
 
+            //
             // body
-            var content = $('<div>', {'class': 'panel-body'});
+            //
+            var id = (type == 'history') ? "panel-" + zindex + "-" + rootcommit : "";
+            var clss = (type == 'history') ? "panel-body collapse" : "panel-body";
+
+            var content = $('<div>', {'class': clss, 'id': id});
 
             var text = $('<p>').html('<strong>Status</strong>: ' + statusmsg[data[idx]['status']]);
             content.append(text);
@@ -109,26 +149,14 @@
 
                 var item = $('<li>').html(
                     '<code><a href="' + commit['url'] + '" target="_blank">' + commitid + '</a></code> ' +
-                    '<code>' + commit['message'] + '</code>'
+                    '<code>' + commit['message'] + '</code>' +
+                    '<small class="pull-right">' + commit['author']['name'] + '</small>'
                 );
 
                 list.append(item);
             }
 
             content.append(list);
-
-            /*
-            var text = $('<p>').html('<strong>Message</strong>: <code>' + data[idx]['commit']['message'] + '</code>');
-            content.append(text);
-
-            var commitid = data[idx]['commit']['id'].substr(0, 10);
-            var commit = '<code><a href="' + data[idx]['commit']['url'] + '">' + commitid + '</a></code>';
-            commit += ' by ';
-            commit += data[idx]['commit']['author']['name'];
-
-            var text = $('<p>').html('<strong>Commit</strong>: ' + commit);
-            content.append(text);
-            */
 
             if(data[idx]['status'] == 'error') {
                 var text = $('<p>').html('<strong>Error</strong>: ' + data[idx]['error'])
