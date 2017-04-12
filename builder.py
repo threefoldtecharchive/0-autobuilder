@@ -6,6 +6,8 @@ import shutil
 import docker
 import collections
 import tarfile
+import json
+import traceback
 from subprocess import call
 from flask import Flask, request, redirect, url_for, render_template, abort, jsonify, make_response
 from werkzeug.utils import secure_filename
@@ -27,6 +29,48 @@ app.url_map.strict_slashes = False
 
 logs = {}
 status = {}
+
+#
+# History
+#
+def history_get():
+    return json.loads(history_raw())
+
+def history_raw():
+    filepath = os.path.join(config['LOGS_DIRECTORY'], "history.json")
+
+    if not os.path.isfile(filepath):
+        return "[]\n"
+
+    with open(filepath, "r") as f:
+        contents = f.read()
+
+    if not contents:
+        contents = "[]\n"
+
+    return contents
+
+def history_push(shortname):
+    history = history_get()
+
+    item = {
+        'name': shortname,
+        'status': status[shortname]['status'],
+        'monitor': consoleof(status[shortname]['console']),
+        'docker': status[shortname]['docker'][0:10],
+        'started': status[shortname]['started'],
+        'ended': status[shortname]['ended'],
+        'error': status[shortname]['error'],
+        'commits': status[shortname]['commits'],
+        'artifact': status[shortname]['artifact'],
+    }
+
+    history.insert(0, item)
+
+    filepath = os.path.join(config['LOGS_DIRECTORY'], "history.json")
+
+    with open(filepath, "w") as f:
+        f.write(json.dumps(history))
 
 #
 # Helpers
@@ -79,12 +123,18 @@ def imagefrom(client, repository, branch):
 def buildsuccess(shortname):
     status[shortname]['status'] = 'success'
     status[shortname]['ended'] = int(time.time())
+
+    history_push(shortname)
     return "OK"
 
 def builderror(shortname, message):
+    print("[-] %s: %s" % (shortname, message))
+
     status[shortname]['status'] = 'error'
     status[shortname]['error'] = message
     status[shortname]['ended'] = int(time.time())
+
+    history_push(shortname)
     return "FAILED"
 
 #
@@ -92,10 +142,10 @@ def builderror(shortname, message):
 # if release is True, kernel is compiled from initramfs
 # otherwise it's compiled from a core change
 #
-def kernel(tmpdir, branch, release):
+def kernel(shortname, tmpdir, branch, reponame, commit, release):
     # format kernel "g8os-BRANCH-generic.efi" if it's a release
-    suffix = '-generic' if release else ""
-    kname = "g8os-%s%s.efi" % (branch, suffix)
+    suffix = 'generic' if release else "%s-%s" % (reponame, commit)
+    kname = "g8os-%s-%s.efi" % (branch, suffix)
 
     print("[+] exporting kernel: %s" % kname)
 
@@ -109,6 +159,23 @@ def kernel(tmpdir, branch, release):
 
     print("[+] moving kernel into production")
     os.rename(krnl, dest)
+
+    if not release:
+        basename = "g8os-%s.efi" % branch
+        target = os.path.join(config['KERNEL_TARGET'], basename)
+
+        if os.path.islink(target) or os.path.isfile(target):
+            os.remove(target)
+
+        # moving to kernel directory
+        now = os.getcwd()
+        os.chdir(config['KERNEL_TARGET'])
+
+        # symlink last kernel to basename
+        os.symlink(kname, basename)
+        os.chdir(now)
+
+    status[shortname]['artifact'] = kname
 
     return True
 
@@ -125,6 +192,7 @@ def event_push(payload):
     ref = payload['ref']
     branch = os.path.basename(ref)
     shortname = "%s/%s" % (repository, branch)
+    commit = payload['head_commit']['id'][0:8]
 
     # connecting docker
     client = docker.from_env()
@@ -136,6 +204,13 @@ def event_push(payload):
     reponame = os.path.basename(repository)
 
     print("[+] repository: %s, branch: %s" % (repository, branch))
+
+    # checking for existing tasks
+    if status.get(shortname):
+        if status[shortname]['status'] not in ['success', 'error']:
+            print("[-] task already running, ignoring")
+            return "BUSY"
+
     # creating entry for that build
     logs[shortname] = ""
     status[shortname] = {
@@ -145,14 +220,16 @@ def event_push(payload):
         'started': int(time.time()),
         'ended': None,
         'error': None,
+        'commits': payload['commits'],
+        'artifact': None,
         # 'logfile':
     }
 
     #
     # This is a little bit hardcoded for our side
     #
-    # if repository == "g8os/core0":
-    if repository == "maxux/hooktest":
+    if repository == "g8os/core0":
+    # if repository == "maxux/hooktest":
         baseimage = imagefrom(client, "g8os/initramfs", branch)
         if not baseimage:
             return builderror(shortname, 'No base image found for branch: %s' % branch)
@@ -160,8 +237,9 @@ def event_push(payload):
         print("[+] base image found: %s" % baseimage.tags)
 
         # DIRTY HACK
-        repository = "g8os/initramfs"
-        reponame = os.path.basename(repository)
+
+        # repository = "g8os/initramfs"
+        # reponame = os.path.basename(repository)
 
         tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
         print("[+] temporary directory: %s" % tmpdir.name)
@@ -182,18 +260,20 @@ def event_push(payload):
 
         try:
             # compiling
-            print(target.status)
             execute(shortname, target, "sh -c 'cd /initramfs && git pull'")
-            execute(shortname, target, "bash /%s/autobuild/gig-build-submodules.sh %s" % (reponame, branch))
+            execute(shortname, target, "bash /initramfs/autobuild/gig-build-cores.sh %s" % branch)
+
+            if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
+                raise RuntimeError("Build failed")
 
             # extract kernel
-            kernel(tmpdir, branch, False)
+            kernel(shortname, tmpdir, branch, reponame, commit, False)
 
             # build well done
             buildsuccess(shortname)
 
         except Exception as e:
-            print(e)
+            traceback.print_exc()
             builderror(shortname, str(e))
 
         # end of build process
@@ -202,11 +282,65 @@ def event_push(payload):
 
         return "OK"
 
-    # if repository == "g8os/initramfs":
-    if repository == "maxux/hooktest":
+    if repository == "g8os/g8ufs":
+    # if repository == "maxux/hooktest":
+        baseimage = imagefrom(client, "g8os/initramfs", branch)
+        if not baseimage:
+            return builderror(shortname, 'No base image found for branch: %s' % branch)
+
+        print("[+] base image found: %s" % baseimage.tags)
+
         # DIRTY HACK
-        repository = "g8os/initramfs"
-        reponame = os.path.basename(repository)
+        # repository = "g8os/initramfs"
+        # reponame = os.path.basename(repository)
+
+        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
+        print("[+] temporary directory: %s" % tmpdir.name)
+
+        #
+        # This is a main project, we build it
+        # then make a base image from it
+        #
+        print("[+] starting container")
+        volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
+        target = client.containers.run(baseimage.id, tty=True, detach=True, volumes=volumes)
+
+        status[shortname]['status'] = 'initializing'
+        status[shortname]['docker'] = target.id
+
+        notice(shortname, 'Executing script')
+        status[shortname]['status'] = 'building'
+
+        try:
+            # compiling
+            execute(shortname, target, "sh -c 'cd /initramfs && git pull'")
+            execute(shortname, target, "bash /initramfs/autobuild/gig-build-g8ufs.sh %s" % branch)
+
+            if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
+                raise RuntimeError("Build failed")
+
+            # extract kernel
+            kernel(shortname, tmpdir, branch, reponame, commit, False)
+
+            # build well done
+            buildsuccess(shortname)
+
+        except Exception as e:
+            traceback.print_exc()
+            builderror(shortname, str(e))
+
+        # end of build process
+        target.remove(force=True)
+        tmpdir.cleanup()
+
+        return "OK"
+
+    if repository == "g8os/initramfs":
+        return buildsuccess(shortname)
+    # if repository == "maxux/hooktest":
+        # DIRTY HACK
+        # repository = "g8os/initramfs"
+        # reponame = os.path.basename(repository)
 
         tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
         print("[+] temporary directory: %s" % tmpdir.name)
@@ -236,8 +370,11 @@ def event_push(payload):
             # compiling
             execute(shortname, target, "bash /%s/autobuild/gig-build.sh" % reponame)
 
+            if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
+                raise RuntimeError("Build failed")
+
             # extract kernel
-            kernel(tmpdir, branch, True)
+            kernel(shortname, tmpdir, branch, reponame, commit, True)
 
             # commit to baseimage
             status[shortname]['status'] = 'committing'
@@ -247,7 +384,7 @@ def event_push(payload):
             buildsuccess(shortname)
 
         except Exception as e:
-            print(e)
+            traceback.print_exc()
             builderror(shortname, str(e))
 
         # end of build process
@@ -256,6 +393,7 @@ def event_push(payload):
 
         return "OK"
 
+    builderror(shortname, "Unknown repository, we don't follow this one.")
     abort(404)
 
 #
@@ -284,9 +422,18 @@ def global_status():
             'started': item['started'],
             'ended': item['ended'],
             'error': item['error'],
+            'commits': item['commits'],
+            'artifact': item['artifact'],
         }
 
     return jsonify(output)
+
+@app.route('/build/history', methods=['GET'])
+def global_history():
+    response = make_response(history_raw())
+    response.headers["Content-Type"] = "application/json"
+
+    return response
 
 @app.route('/build/<project>/hook', methods=['GET', 'POST'])
 def ipxe_branch_network(project):
