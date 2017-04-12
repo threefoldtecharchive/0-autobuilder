@@ -1,0 +1,35 @@
+body {
+	padding-top: 20px;
+}
+
+.home-content {
+	padding: 40px 15px 0 15px;
+	text-align: center;
+}
+
+.riche {
+	text-align: center;
+	box-shadow: 0 0 20px #888888;
+	padding: 20px;
+	margin: 20px;
+}
+
+.riche h1 {
+	margin: 0;
+}
+
+h2 {
+	text-align: center;
+	text-transform: italic;
+}
+
+table thead {
+	font-weight: bold;
+	border-bottom: solid 2px #4D4D4D;
+}
+
+table tfoot {
+	font-weight: bold;
+	border-top: solid 2px #BFBFBF;
+	background: #F5F5F5;
+}

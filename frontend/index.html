@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Build Status</title>
+
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap-theme.min.css" integrity="sha384-rHyoN1iRsVXV4nD0JutlnGaslCJuC7uwjduW9SVrLvRYooPp2bWYgmgJQIXwl/Sp" crossorigin="anonymous">
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js" integrity="sha256-hwg4gsxgFZhOsEEamdOYGBf13FyQuiTwlAQgxVSNgt4=" crossorigin="anonymous"></script>
+    <link href="builder.css" rel="stylesheet" />
+</head>
+<body>
+    <div class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+            <button type="button" class="navbar-toggle" data-toggle="collapse" data-target=".navbar-collapse">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            </button>
+        </div>
+
+        <div class="collapse navbar-collapse">
+            <ul class="nav navbar-nav">
+                <li class="active">
+                    <a href="./">Build Status</a>
+                </li>
+                <li>
+                    <a href="#" onclick="update();">Refresh</a>
+                </li>
+            </ul>
+        </div>
+    </div>
+    </div>
+
+    <div class="container">
+        <div class="home-content">
+            <h1>Build Monitoring</h1>
+        </div>
+
+        <div id="build-status">
+        </div>
+
+        <div class="home-content">
+            <h1>Build History</h1>
+        </div>
+
+        <div id="build-history">
+        </div>
+    </div>
+
+    <script type="text/javascript">
+    var statuscolors = {
+        'error': 'danger',
+        'success': 'success',
+        'building': 'info',
+        'committing': 'info',
+        'preparing': 'info',
+        'initializing': 'info',
+    };
+
+    var statusmsg = {
+        'error': 'build failed.',
+        'success': 'build succeeded.',
+        'building': 'building...',
+        'committing': 'committing image...',
+        'preparing': 'preparing the build.',
+        'initializing': 'initializing the image.',
+    };
+
+    function refresh_status(data) {
+        refresh(data, 'status');
+    }
+
+    function refresh_history(data) {
+        refresh(data, 'history');
+    }
+
+    function refresh(data, type) {
+        console.log(data);
+
+        $("#build-" + type).empty();
+
+        for(var idx in data) {
+            var root = $('<div>', {'class': 'panel panel-' + statuscolors[data[idx]['status']]});
+
+            // heading
+            var heading = $('<div>', {'class': 'panel-heading'});
+            var title = (type == 'history') ? data[idx]['name'] : idx;
+            heading.append($('<h3>', {'class': 'panel-title'}).html(title));
+            root.append(heading);
+
+            // body
+            var content = $('<div>', {'class': 'panel-body'});
+
+            var text = $('<p>').html('<strong>Status</strong>: ' + statusmsg[data[idx]['status']]);
+            content.append(text);
+
+            var text = $('<p>').html('<strong>Commits</strong>:');
+            content.append(text);
+
+            var list = $('<ul>');
+            for(var i in data[idx]['commits']) {
+                var commit = data[idx]['commits'][i];
+                var commitid = commit['id'].substr(0, 10);
+
+                var item = $('<li>').html(
+                    '<code><a href="' + commit['url'] + '" target="_blank">' + commitid + '</a></code> ' +
+                    '<code>' + commit['message'] + '</code>'
+                );
+
+                list.append(item);
+            }
+
+            content.append(list);
+
+            /*
+            var text = $('<p>').html('<strong>Message</strong>: <code>' + data[idx]['commit']['message'] + '</code>');
+            content.append(text);
+
+            var commitid = data[idx]['commit']['id'].substr(0, 10);
+            var commit = '<code><a href="' + data[idx]['commit']['url'] + '">' + commitid + '</a></code>';
+            commit += ' by ';
+            commit += data[idx]['commit']['author']['name'];
+
+            var text = $('<p>').html('<strong>Commit</strong>: ' + commit);
+            content.append(text);
+            */
+
+            if(data[idx]['status'] == 'error') {
+                var text = $('<p>').html('<strong>Error</strong>: ' + data[idx]['error'])
+                content.append(text);
+            }
+
+            if(data[idx]['artifact']) {
+                var text = $('<p>').html('<strong>Artifact</strong>: <code>' + data[idx]['artifact'] + '</code>')
+                content.append(text);
+            }
+
+            // compute execution time
+            if(data[idx]['ended']) {
+                var elapsed = ((data[idx]['ended'] - data[idx]['started']) / 60).toFixed(1);
+                var text = $('<p>').html('<strong>Build time</strong>: ' + elapsed + ' minutes');
+                content.append(text);
+
+            } else {
+                var elapsed = (((Date.now() / 1000) - data[idx]['started']) / 60).toFixed(1);
+                var text = $('<p>').html('<strong>Build started</strong>: ' + elapsed + ' minutes ago');
+                content.append(text);
+            }
+
+            // do not shot console if empty
+            if(data[idx]['monitor']) {
+                var logs = $('<pre>').html(data[idx]['monitor']);
+
+                content.append($('<hr>'));
+                content.append(logs);
+            }
+
+            root.append(content);
+
+            $("#build-" + type).append(root);
+        }
+    }
+
+    function update() {
+        $.get('/build/status', refresh_status);
+        $.get('/build/history', refresh_history);
+    }
+
+    $(document).ready(function() { update(); });
+    </script>
+</body>
+</html>
