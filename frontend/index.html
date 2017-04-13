@@ -57,6 +57,8 @@
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     <script type="text/javascript">
     var window_focus = true;
+    var was_building = false;
+
     var statuscolors = {
         'error': 'danger',
         'success': 'success',
@@ -97,11 +99,16 @@
 
                 $("#build-" + type).append(text);
 
+                // build just finished, update history
+                if(was_building)
+                    update_history();
+
                 return setTimeout(update_status, 2 * 60 * 1000);
             }
 
             // update 2 seconds
             setTimeout(update_status, 2 * 1000);
+            was_building = true;
         }
 
         if(type == 'history') {
@@ -249,8 +256,10 @@
     });
 
     $(window).focus(function() {
-        if(!window_focus)
+        if(!window_focus) {
+            window_focus = true;
             update();
+        }
 
         window_focus = true;
 

@@ -33,7 +33,7 @@ BASEPATH = os.path.join(thispath)
 if not os.path.exists(config['LOGS_DIRECTORY']):
     os.mkdir(config['LOGS_DIRECTORY'])
 
-app = Flask(__name__)
+app = Flask(__name__, static_url_path='/monitor')
 app.url_map.strict_slashes = False
 
 logs = {}
@@ -201,7 +201,7 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
 #
 # Build workflow
 #
-def build(shortname, baseimage, script, branch, reponame, commit, release):
+def build(shortname, baseimage, repository, script, branch, reponame, commit, release):
     # connecting docker
     client = docker.from_env()
 
@@ -319,7 +319,7 @@ def event_push(payload):
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
-        return build(shortname, baseimage.id, "gig-build-cores.sh", branch, reponame, commit, False)
+        return build(shortname, baseimage.id, repository, "gig-build-cores.sh", branch, reponame, commit, False)
 
         """
         # DIRTY HACK
@@ -376,7 +376,7 @@ def event_push(payload):
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
-        return build(shortname, baseimage.id, "gig-build-g8ufs.sh", branch, reponame, commit, False)
+        return build(shortname, baseimage.id, repository, "gig-build-g8ufs.sh", branch, reponame, commit, False)
 
         """
         # DIRTY HACK
@@ -433,7 +433,7 @@ def event_push(payload):
         # repository = "g8os/initramfs"
         # reponame = os.path.basename(repository)
 
-        return build(shortname, "ubuntu:16.04", "gig-build.sh", branch, reponame, commit, True)
+        return build(shortname, "ubuntu:16.04", repository, "gig-build.sh", branch, reponame, commit, True)
 
         """
         tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
@@ -503,7 +503,7 @@ def global_logs(project, name, branch):
         abort(404)
 
     response = make_response(logs[collapse])
-    response.headers["Content-Type"] = "plain/text"
+    response.headers["Content-Type"] = "text/plain"
 
     return response
 
