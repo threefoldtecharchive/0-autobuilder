@@ -16,6 +16,15 @@ from werkzeug.exceptions import HTTPException
 from config import config
 
 #
+# FIXME FIXME FIXME
+# ===============================================
+# Refactore me please, this should use classes and not a flat file like this
+# I'm really ugly.
+# ===============================================
+# FIXME FIXME FIXME
+#
+
+#
 # Theses location should works out-of-box if you use default settings
 #
 thispath = os.path.dirname(os.path.realpath(__file__))
@@ -72,6 +81,8 @@ def history_push(shortname):
     with open(filepath, "w") as f:
         f.write(json.dumps(history))
 
+
+
 #
 # Helpers
 #
@@ -117,14 +128,18 @@ def imagefrom(client, repository, branch):
 
     return None
 
+
+
 #
 # build status
 #
 def buildsuccess(shortname):
     status[shortname]['status'] = 'success'
     status[shortname]['ended'] = int(time.time())
-
     history_push(shortname)
+
+    del status[shortname]
+
     return "OK"
 
 def builderror(shortname, message):
@@ -133,8 +148,10 @@ def builderror(shortname, message):
     status[shortname]['status'] = 'error'
     status[shortname]['error'] = message
     status[shortname]['ended'] = int(time.time())
-
     history_push(shortname)
+
+    del status[shortname]
+
     return "FAILED"
 
 #
@@ -178,6 +195,73 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
     status[shortname]['artifact'] = kname
 
     return True
+
+
+
+#
+# Build workflow
+#
+def build(shortname, baseimage, script, branch, reponame, commit, release):
+    # connecting docker
+    client = docker.from_env()
+
+    # creating temporary workspace
+    tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
+    print("[+] temporary directory: %s" % tmpdir.name)
+
+    #
+    # This is a main project, we build it
+    # then make a base image from it
+    #
+    print("[+] starting container")
+    volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
+    target = client.containers.run(baseimage, tty=True, detach=True, volumes=volumes)
+
+    status[shortname]['status'] = 'initializing'
+    status[shortname]['docker'] = target.id
+
+    if release:
+        notice(shortname, 'Preparing system')
+        execute(shortname, target, "apt-get update")
+        execute(shortname, target, "apt-get install -y git")
+
+        notice(shortname, 'Cloning repository')
+        execute(shortname, target, "git clone -b '%s' https://github.com/%s" % (branch, repository))
+
+    notice(shortname, 'Executing script')
+    status[shortname]['status'] = 'building'
+
+    try:
+        # FIXME: should not happen
+        if not release:
+            execute(shortname, target, "sh -c 'cd /initramfs && git pull'")
+
+        # compiling
+        execute(shortname, target, "bash /initramfs/autobuild/%s %s" % (script, branch))
+
+        if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
+            raise RuntimeError("Build failed")
+
+        # extract kernel
+        kernel(shortname, tmpdir, branch, reponame, commit, False)
+
+        if release:
+            # commit to baseimage
+            status[shortname]['status'] = 'committing'
+            target.commit(repository, branch)
+
+        # build well done
+        buildsuccess(shortname)
+
+    except Exception as e:
+        traceback.print_exc()
+        builderror(shortname, str(e))
+
+    # end of build process
+    target.remove(force=True)
+    tmpdir.cleanup()
+
+    return "OK"
 
 #
 # Events
@@ -235,7 +319,9 @@ def event_push(payload):
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
+        return build(shortname, baseimage.id, "gig-build-cores.sh", branch, reponame, commit, False)
 
+        """
         # DIRTY HACK
 
         # repository = "g8os/initramfs"
@@ -281,6 +367,7 @@ def event_push(payload):
         tmpdir.cleanup()
 
         return "OK"
+        """
 
     if repository == "g8os/g8ufs":
     # if repository == "maxux/hooktest":
@@ -289,7 +376,9 @@ def event_push(payload):
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
+        return build(shortname, baseimage.id, "gig-build-g8ufs.sh", branch, reponame, commit, False)
 
+        """
         # DIRTY HACK
         # repository = "g8os/initramfs"
         # reponame = os.path.basename(repository)
@@ -334,14 +423,19 @@ def event_push(payload):
         tmpdir.cleanup()
 
         return "OK"
+        """
 
-    if repository == "g8os/initramfs":
-        return buildsuccess(shortname)
     # if repository == "maxux/hooktest":
+    if repository == "g8os/initramfs":
+        # return buildsuccess(shortname)
+
         # DIRTY HACK
         # repository = "g8os/initramfs"
         # reponame = os.path.basename(repository)
 
+        return build(shortname, "ubuntu:16.04", "gig-build.sh", branch, reponame, commit, True)
+
+        """
         tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
         print("[+] temporary directory: %s" % tmpdir.name)
 
@@ -392,9 +486,12 @@ def event_push(payload):
         tmpdir.cleanup()
 
         return "OK"
+        """
 
     builderror(shortname, "Unknown repository, we don't follow this one.")
     abort(404)
+
+
 
 #
 # Routing
