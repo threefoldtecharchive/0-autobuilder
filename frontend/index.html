@@ -39,15 +39,16 @@
 
     <div class="container">
         <div class="home-content">
-            <h1>Build Monitoring</h1>
         </div>
+
+        <h1>Build Monitoring</h1>
 
         <div id="build-status">
         </div>
 
-        <div class="home-content">
-            <h1>Build History</h1>
-        </div>
+        <hr>
+
+        <h1 class="secondary">Build History</h1>
 
         <div id="build-history">
         </div>
@@ -55,6 +56,7 @@
 
     <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js" integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa" crossorigin="anonymous"></script>
     <script type="text/javascript">
+    var window_focus = true;
     var statuscolors = {
         'error': 'danger',
         'success': 'success',
@@ -86,8 +88,37 @@
 
         $("#build-" + type).empty();
 
-        var zindex = 0;
+        if(type == 'status') {
+            if(Object.keys(data).length == 0) {
+                var text = $('<h2>', {'class': 'text-success'});
+                text.append($('<span>', {'class': 'glyphicon glyphicon-ok'}));
+                text.append('<br>');
+                text.append('Nothing do to right now, all build done.');
 
+                $("#build-" + type).append(text);
+
+                return setTimeout(update_status, 2 * 60 * 1000);
+            }
+
+            // update 2 seconds
+            setTimeout(update_status, 2 * 1000);
+        }
+
+        if(type == 'history') {
+            if(Object.keys(data).length == 0) {
+                var text = $('<h2>', {'class': 'text-success'});
+                text.append($('<span>', {'class': 'glyphicon glyphicon-ok'}));
+                text.append('<br>');
+                text.append('No history right now.');
+
+                $("#build-" + type).append(text);
+                return setTimeout(update_history, 2 * 60 * 1000);
+            }
+
+            setTimeout(update_status, 30 * 1000);
+        }
+
+        var zindex = 0;
         for(var idx in data) {
             zindex++;
 
@@ -194,12 +225,38 @@
         }
     }
 
-    function update() {
+    function update_status() {
+        if(!window_focus)
+            return;
+
         $.get('/build/status', refresh_status);
+    }
+
+    function update_history() {
+        if(!window_focus)
+            return;
+
         $.get('/build/history', refresh_history);
     }
 
-    $(document).ready(function() { update(); });
+    function update() {
+        update_status();
+        update_history();
+    }
+
+    $(document).ready(function() {
+        update();
+    });
+
+    $(window).focus(function() {
+        if(!window_focus)
+            update();
+
+        window_focus = true;
+
+    }).blur(function() {
+        window_focus = false;
+    });
     </script>
 </body>
 </html>

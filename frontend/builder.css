@@ -8,15 +8,8 @@ body {
 	text-align: center;
 }
 
-.riche {
+h1 {
 	text-align: center;
-	box-shadow: 0 0 20px #888888;
-	padding: 20px;
-	margin: 20px;
-}
-
-.riche h1 {
-	margin: 0;
 }
 
 h2 {
@@ -38,4 +31,9 @@ table tfoot {
 	font-weight: bold;
 	border-top: solid 2px #BFBFBF;
 	background: #F5F5F5;
+}
+
+hr {
+	margin-top: 35px;
+	margin-bottom: 35px;
 }
