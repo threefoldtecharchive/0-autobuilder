@@ -240,7 +240,7 @@ def build(shortname, baseimage, repository, script, branch, reponame, commit, re
         execute(shortname, target, "bash /initramfs/autobuild/%s %s" % (script, branch))
 
         if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
-            raise RuntimeError("Build failed")
+            raise RuntimeError("Kernel not found on %s/vmlinuz.efi" % tmpdir.name)
 
         # extract kernel
         kernel(shortname, tmpdir, branch, reponame, commit, False)
