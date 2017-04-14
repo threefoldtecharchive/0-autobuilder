@@ -553,6 +553,10 @@ def ipxe_branch_network(project):
     print("[-] unknown event: %s" % request.headers['X-Github-Event'])
     abort(400)
 
+@app.route("/monitor/", strict_slashes=False)
+def index():
+    return render_template("index.html")
+
 print("[+] listening")
 app.run(host="0.0.0.0", port=config['HTTP_PORT'], debug=config['DEBUG'], threaded=True)
 
