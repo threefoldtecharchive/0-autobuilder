@@ -206,7 +206,7 @@ def build(shortname, baseimage, repository, script, branch, reponame, commit, re
     client = docker.from_env()
 
     # creating temporary workspace
-    tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
+    tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-", dir=config['TMP_DIRECTORY'])
     print("[+] temporary directory: %s" % tmpdir.name)
 
     #

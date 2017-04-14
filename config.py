@@ -3,9 +3,10 @@
 #
 config = {
     'TOKEN': "debugmode1234abcd",
-    # 'IPXE_TEMPLATE': "/opt/ipxe-template",
+
     'KERNEL_TARGET': '/tmp/kernels/',
     'LOGS_DIRECTORY': '/tmp/build-logs',
+    'TMP_DIRECTORY': None,
 
     'HTTP_PORT': 5560,
 
