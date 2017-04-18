@@ -58,6 +58,7 @@
     <script type="text/javascript">
     var window_focus = true;
     var was_building = false;
+    var artifactshost = 'https://bootstrap.gig.tech/kernel/';
 
     var statuscolors = {
         'error': 'danger',
@@ -202,7 +203,10 @@
             }
 
             if(data[idx]['artifact']) {
-                var text = $('<p>').html('<strong>Artifact</strong>: <code>' + data[idx]['artifact'] + '</code>')
+                var lnk = $('<a>', {'href': artifactshost + data[idx]['artifact']}).html(data[idx]['artifact']);
+                var text = $('<p>').html('<strong>Artifact</strong>: ');
+                text.append($('<code>').append(lnk));
+
                 content.append(text);
             }
 
