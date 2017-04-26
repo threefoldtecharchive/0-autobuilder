@@ -40,3 +40,11 @@ To get the kernel from the docker, a mount volume (temporary directory) is used 
 if you are on a container already, the root of your container is not the same root as the host, the temporary directory
 will be created on the host and not on your container, to fix this issue, you need to configure `TMP_DIRECTORY` to a shared
 directory between container and host.
+
+# Monitor
+The endpoint `/monitor` will shows you in (nearly) realtime what's currently going on and previous build process
+
+You can reach some logs and specific build status with:
+- `/build/history`
+- `/build/status`
+- `/build/logs/<project>/<name>/<branch>`
