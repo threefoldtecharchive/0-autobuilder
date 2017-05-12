@@ -313,7 +313,6 @@ def event_push(payload):
     # This is a little bit hardcoded for our side
     #
     if repository == "g8os/core0":
-    # if repository == "maxux/hooktest":
         baseimage = imagefrom(client, "g8os/initramfs", branch)
         if not baseimage:
             return builderror(shortname, 'No base image found for branch: %s' % branch)
@@ -321,56 +320,7 @@ def event_push(payload):
         print("[+] base image found: %s" % baseimage.tags)
         return build(shortname, baseimage.id, repository, "gig-build-cores.sh", branch, reponame, commit, False)
 
-        """
-        # DIRTY HACK
-
-        # repository = "g8os/initramfs"
-        # reponame = os.path.basename(repository)
-
-        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
-        print("[+] temporary directory: %s" % tmpdir.name)
-
-        #
-        # This is a main project, we build it
-        # then make a base image from it
-        #
-        print("[+] starting container")
-        volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
-        target = client.containers.run(baseimage.id, tty=True, detach=True, volumes=volumes)
-
-        status[shortname]['status'] = 'initializing'
-        status[shortname]['docker'] = target.id
-
-        notice(shortname, 'Executing script')
-        status[shortname]['status'] = 'building'
-
-        try:
-            # compiling
-            execute(shortname, target, "sh -c 'cd /initramfs && git pull'")
-            execute(shortname, target, "bash /initramfs/autobuild/gig-build-cores.sh %s" % branch)
-
-            if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
-                raise RuntimeError("Build failed")
-
-            # extract kernel
-            kernel(shortname, tmpdir, branch, reponame, commit, False)
-
-            # build well done
-            buildsuccess(shortname)
-
-        except Exception as e:
-            traceback.print_exc()
-            builderror(shortname, str(e))
-
-        # end of build process
-        target.remove(force=True)
-        tmpdir.cleanup()
-
-        return "OK"
-        """
-
     if repository == "g8os/g8ufs":
-    # if repository == "maxux/hooktest":
         baseimage = imagefrom(client, "g8os/initramfs", branch)
         if not baseimage:
             return builderror(shortname, 'No base image found for branch: %s' % branch)
@@ -378,115 +328,16 @@ def event_push(payload):
         print("[+] base image found: %s" % baseimage.tags)
         return build(shortname, baseimage.id, repository, "gig-build-g8ufs.sh", branch, reponame, commit, False)
 
-        """
-        # DIRTY HACK
-        # repository = "g8os/initramfs"
-        # reponame = os.path.basename(repository)
+    if repository == "g8os/initramfs-gig":
+        baseimage = imagefrom(client, "g8os/initramfs", branch)
+        if not baseimage:
+            return builderror(shortname, 'No base image found for branch: %s' % branch)
 
-        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
-        print("[+] temporary directory: %s" % tmpdir.name)
+        print("[+] base image found: %s" % baseimage.tags)
+        return build(shortname, baseimage.id, repository, "gig-build-extensions.sh", branch, reponame, commit, False)
 
-        #
-        # This is a main project, we build it
-        # then make a base image from it
-        #
-        print("[+] starting container")
-        volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
-        target = client.containers.run(baseimage.id, tty=True, detach=True, volumes=volumes)
-
-        status[shortname]['status'] = 'initializing'
-        status[shortname]['docker'] = target.id
-
-        notice(shortname, 'Executing script')
-        status[shortname]['status'] = 'building'
-
-        try:
-            # compiling
-            execute(shortname, target, "sh -c 'cd /initramfs && git pull'")
-            execute(shortname, target, "bash /initramfs/autobuild/gig-build-g8ufs.sh %s" % branch)
-
-            if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
-                raise RuntimeError("Build failed")
-
-            # extract kernel
-            kernel(shortname, tmpdir, branch, reponame, commit, False)
-
-            # build well done
-            buildsuccess(shortname)
-
-        except Exception as e:
-            traceback.print_exc()
-            builderror(shortname, str(e))
-
-        # end of build process
-        target.remove(force=True)
-        tmpdir.cleanup()
-
-        return "OK"
-        """
-
-    # if repository == "maxux/hooktest":
     if repository == "g8os/initramfs":
-        # return buildsuccess(shortname)
-
-        # DIRTY HACK
-        # repository = "g8os/initramfs"
-        # reponame = os.path.basename(repository)
-
         return build(shortname, "ubuntu:16.04", repository, "gig-build.sh", branch, reponame, commit, True)
-
-        """
-        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-")
-        print("[+] temporary directory: %s" % tmpdir.name)
-
-        #
-        # This is a main project, we build it
-        # then make a base image from it
-        #
-        print("[+] starting container")
-        volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
-        target = client.containers.run("ubuntu:16.04", tty=True, detach=True, volumes=volumes)
-
-        status[shortname]['status'] = 'initializing'
-        status[shortname]['docker'] = target.id
-
-        notice(shortname, 'Preparing system')
-        execute(shortname, target, "apt-get update")
-        execute(shortname, target, "apt-get install -y git")
-
-        notice(shortname, 'Cloning repository')
-        execute(shortname, target, "git clone -b '%s' https://github.com/%s" % (branch, repository))
-
-        notice(shortname, 'Executing script')
-        status[shortname]['status'] = 'building'
-
-        try:
-            # compiling
-            execute(shortname, target, "bash /%s/autobuild/gig-build.sh" % reponame)
-
-            if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
-                raise RuntimeError("Build failed")
-
-            # extract kernel
-            kernel(shortname, tmpdir, branch, reponame, commit, True)
-
-            # commit to baseimage
-            status[shortname]['status'] = 'committing'
-            target.commit(repository, branch)
-
-            # build well done
-            buildsuccess(shortname)
-
-        except Exception as e:
-            traceback.print_exc()
-            builderror(shortname, str(e))
-
-        # end of build process
-        target.remove(force=True)
-        tmpdir.cleanup()
-
-        return "OK"
-        """
 
     builderror(shortname, "Unknown repository, we don't follow this one.")
     abort(404)
