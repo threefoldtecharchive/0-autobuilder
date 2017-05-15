@@ -8,6 +8,7 @@ import collections
 import tarfile
 import json
 import traceback
+import requests
 from subprocess import call
 from flask import Flask, request, redirect, url_for, render_template, abort, jsonify, make_response
 from werkzeug.utils import secure_filename
@@ -33,6 +34,10 @@ BASEPATH = os.path.join(thispath)
 if not os.path.exists(config['LOGS_DIRECTORY']):
     os.mkdir(config['LOGS_DIRECTORY'])
 
+sublogfiles = os.path.join(config['LOGS_DIRECTORY'], "commits")
+if not os.path.exists(sublogfiles):
+    os.mkdir(sublogfiles)
+
 app = Flask(__name__, static_url_path='/monitor')
 app.url_map.strict_slashes = False
 
@@ -42,10 +47,10 @@ status = {}
 #
 # History
 #
-def history_get():
-    return json.loads(history_raw())
+def history_get(limit=None):
+    return json.loads(history_raw(limit))
 
-def history_raw():
+def history_raw(limit=None):
     filepath = os.path.join(config['LOGS_DIRECTORY'], "history.json")
 
     if not os.path.isfile(filepath):
@@ -53,6 +58,10 @@ def history_raw():
 
     with open(filepath, "r") as f:
         contents = f.read()
+
+    if limit is not None:
+        temp = json.loads(contents)
+        return json.dumps(temp[0:limit])
 
     if not contents:
         contents = "[]\n"
@@ -100,6 +109,10 @@ def execute(shortname, target, command):
         status[shortname]['console'].append(line.decode('utf-8'))
         logs[shortname] += line.decode('utf-8')
 
+        # save to logfile
+        with open(status[shortname]['logfile'], "a") as logfile:
+            logfile.write(line.decode('utf-8'))
+
 def consoleof(console):
     output = ""
 
@@ -138,6 +151,9 @@ def buildsuccess(shortname):
     status[shortname]['ended'] = int(time.time())
     history_push(shortname)
 
+    # update github statues
+    github_statues(status[shortname]['commit'], "success", status[shortname]['repository'])
+
     del status[shortname]
 
     return "OK"
@@ -149,6 +165,9 @@ def builderror(shortname, message):
     status[shortname]['error'] = message
     status[shortname]['ended'] = int(time.time())
     history_push(shortname)
+
+    # update github statues
+    github_statues(status[shortname]['commit'], "failed", status[shortname]['repository'])
 
     del status[shortname]
 
@@ -196,7 +215,36 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
 
     return True
 
+#
+# Github statues
+#
+def github_statues(commit, status, fullrepo):
+    # skipping if no token provided
+    if config["GITHUB_TOKEN"] == "":
+        print("[-] no github token configured")
+        return
 
+    base = "https://api.github.com"
+    headers = {"Authorization": "token " + config["GITHUB_TOKEN"]}
+
+    if status == "success":
+        description = "Build succeed"
+
+    else:
+        description = "Build failed, please check report"
+
+    data = {
+        "state": status,
+        "target_url": "%s/report/%s" % (config['PUBLIC_HOST'], commit),
+        "description": description,
+        "context": "gig-autobuilder"
+    }
+
+    endpoint = "%s/repos/%s/statuses/%s" % (base, fullrepo, commit)
+    print("[+] set status to: %s" % endpoint)
+
+    req = requests.post(endpoint, headers=headers, json=data)
+    print(req.json())
 
 #
 # Build workflow
@@ -281,9 +329,6 @@ def event_push(payload):
     # connecting docker
     client = docker.from_env()
 
-    # saving full log to a file
-    # logfile = os.path.join(config['LOGS_DIRECTORY']...
-
     # extract repository name
     reponame = os.path.basename(repository)
 
@@ -302,12 +347,18 @@ def event_push(payload):
         'status': 'preparing',
         'console': collections.deque(maxlen=20),
         'started': int(time.time()),
+        'repository': repository,
         'ended': None,
         'error': None,
         'commits': payload['commits'],
+        'commit': payload['head_commit']['id'],
         'artifact': None,
-        # 'logfile':
+        'logfile': os.path.join(config['LOGS_DIRECTORY'], "commits", payload['head_commit']['id']),
     }
+
+    # cleaning previous logfile if any
+    if os.path.isfile(status[shortname]['logfile']):
+        os.remove(status[shortname]['logfile'])
 
     #
     # This is a little bit hardcoded for our side
@@ -347,13 +398,28 @@ def event_push(payload):
 #
 # Routing
 #
-@app.route('/build/logs/<project>/<name>/<branch>', methods=['GET'])
+@app.route('/logs/<project>/<name>/<branch>', methods=['GET'])
 def global_logs(project, name, branch):
     collapse = "%s/%s/%s" % (project, name, branch)
     if not logs.get(collapse):
         abort(404)
 
     response = make_response(logs[collapse])
+    response.headers["Content-Type"] = "text/plain"
+
+    return response
+
+@app.route('/report/<hash>', methods=['GET'])
+def global_commit_logs(hash):
+    logfile = os.path.join(config['LOGS_DIRECTORY'], "commits", hash)
+
+    if not os.path.isfile(logfile):
+        abort(404)
+
+    with open(logfile, "r") as f:
+        contents = f.read()
+
+    response = make_response(contents)
     response.headers["Content-Type"] = "text/plain"
 
     return response
@@ -376,15 +442,22 @@ def global_status():
 
     return jsonify(output)
 
-@app.route('/build/history', methods=['GET'])
-def global_history():
+@app.route('/build/history/full', methods=['GET'])
+def global_history_full():
     response = make_response(history_raw())
     response.headers["Content-Type"] = "application/json"
 
     return response
 
+@app.route('/build/history', methods=['GET'])
+def global_history():
+    response = make_response(history_raw(25))
+    response.headers["Content-Type"] = "application/json"
+
+    return response
+
 @app.route('/build/<project>/hook', methods=['GET', 'POST'])
-def ipxe_branch_network(project):
+def build_hook(project):
     print("[+] project: %s" % project)
 
     if not request.headers.get('X-Github-Event'):
