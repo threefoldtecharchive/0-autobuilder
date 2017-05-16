@@ -38,7 +38,7 @@ sublogfiles = os.path.join(config['LOGS_DIRECTORY'], "commits")
 if not os.path.exists(sublogfiles):
     os.mkdir(sublogfiles)
 
-app = Flask(__name__, static_url_path='/monitor')
+app = Flask(__name__, static_url_path='/static')
 app.url_map.strict_slashes = False
 
 logs = {}
@@ -479,6 +479,10 @@ def build_hook(project):
 
 @app.route("/monitor/", strict_slashes=False)
 def index():
+    return render_template("index.html")
+
+@app.route("/", strict_slashes=False)
+def index_root():
     return render_template("index.html")
 
 print("[+] listening")
