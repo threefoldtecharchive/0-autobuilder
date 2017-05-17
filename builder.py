@@ -139,7 +139,11 @@ def imagefrom(client, repository, branch):
         if branch.startswith(tag):
             return image
 
-    return None
+    if branch == "master":
+        return None
+
+    # fallback to master
+    return imagefrom(client, repository, "master")
 
 
 
@@ -456,6 +460,9 @@ def global_history():
 
     return response
 
+#
+# Git Hook
+#
 @app.route('/build/<project>/hook', methods=['GET', 'POST'])
 def build_hook(project):
     print("[+] project: %s" % project)
@@ -477,6 +484,9 @@ def build_hook(project):
     print("[-] unknown event: %s" % request.headers['X-Github-Event'])
     abort(400)
 
+#
+# Monitor page
+#
 @app.route("/monitor/", strict_slashes=False)
 def index():
     return render_template("index.html")
