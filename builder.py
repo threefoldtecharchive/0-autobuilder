@@ -367,31 +367,31 @@ def event_push(payload):
     #
     # This is a little bit hardcoded for our side
     #
-    if repository == "g8os/core0":
-        baseimage = imagefrom(client, "g8os/initramfs", branch)
+    if repository == "zero-os/core0":
+        baseimage = imagefrom(client, "zero-os/initramfs", branch)
         if not baseimage:
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
         return build(shortname, baseimage.id, repository, "gig-build-cores.sh", branch, reponame, commit, False)
 
-    if repository == "g8os/g8ufs":
-        baseimage = imagefrom(client, "g8os/initramfs", branch)
+    if repository == "zero-os/g8ufs":
+        baseimage = imagefrom(client, "zero-os/initramfs", branch)
         if not baseimage:
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
         return build(shortname, baseimage.id, repository, "gig-build-g8ufs.sh", branch, reponame, commit, False)
 
-    if repository == "g8os/initramfs-gig":
-        baseimage = imagefrom(client, "g8os/initramfs", branch)
+    if repository == "zero-os/initramfs-gig":
+        baseimage = imagefrom(client, "zero-os/initramfs", branch)
         if not baseimage:
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
         return build(shortname, baseimage.id, repository, "gig-build-extensions.sh", branch, reponame, commit, False)
 
-    if repository == "g8os/initramfs":
+    if repository == "zero-os/initramfs":
         return build(shortname, "ubuntu:16.04", repository, "gig-build.sh", branch, reponame, commit, True)
 
     builderror(shortname, "Unknown repository, we don't follow this one.")

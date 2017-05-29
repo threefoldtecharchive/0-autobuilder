@@ -3,23 +3,23 @@ This webservice is a build-process (like Jenkins) tuned for g8os internal develo
 
 # What does it do
 This service autobuild a kernel when someone push on theses repositories:
-- `g8os/initramfs`
-- `g8os/core0`
-- `g8os/g8ufs`
+- `zero-os/initramfs`
+- `zero-os/core0`
+- `zero-os/g8ufs`
 
 Theses repo have github's webhook configured to trigger on push.
 
 When a push is received, some actions are donc depending of the repository.
 
 # Actions
-When a push is received from `g8os/initramfs`:
+When a push is received from `zero-os/initramfs`:
 - A new docker based on fresh `ubuntu:16.04` is started and a complete initramfs build is done
-- When build is done, kernel is extracted and copied to `bootstrap` [g8os/bootstrap]
+- When build is done, kernel is extracted and copied to `bootstrap` [zero-os/bootstrap]
 - A docker image is created (commit) and tagged with the branch as name
 
-When a push is received from `g8os/core0` or `g8os/g8ufs`:
+When a push is received from `zero-os/core0` or `zero-os/g8ufs`:
 - A new docker based on `initramfs/[base-branch]` is started and only cores and g8ufs are rebuild
-- When build is done, kernel is extracted and copied to `bootstrap` [g8os/bootstrap]
+- When build is done, kernel is extracted and copied to `bootstrap` [zero-os/bootstrap]
 
 # Configuration
 You can customize the service by editing `config.py`:
