@@ -183,9 +183,9 @@ def builderror(shortname, message):
 # otherwise it's compiled from a core change
 #
 def kernel(shortname, tmpdir, branch, reponame, commit, release):
-    # format kernel "g8os-BRANCH-generic.efi" if it's a release
+    # format kernel "zero-os-BRANCH-generic.efi" if it's a release
     suffix = 'generic' if release else "%s-%s" % (reponame, commit)
-    kname = "g8os-%s-%s.efi" % (branch, suffix)
+    kname = "zero-os-%s-%s.efi" % (branch, suffix)
 
     print("[+] exporting kernel: %s" % kname)
 
@@ -201,7 +201,7 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
     os.rename(krnl, dest)
 
     if not release:
-        basename = "g8os-%s.efi" % branch
+        basename = "zero-os-%s.efi" % branch
         target = os.path.join(config['KERNEL_TARGET'], basename)
 
         if os.path.islink(target) or os.path.isfile(target):
