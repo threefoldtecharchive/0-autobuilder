@@ -286,10 +286,10 @@ def build(shortname, baseimage, repository, script, branch, reponame, commit, re
     try:
         # FIXME: should not happen
         if not release:
-            execute(shortname, target, "sh -c 'cd /initramfs && git pull'")
+            execute(shortname, target, "sh -c 'cd /0-initramfs && git pull'")
 
         # compiling
-        execute(shortname, target, "bash /initramfs/autobuild/%s %s" % (script, branch))
+        execute(shortname, target, "bash /0-initramfs/autobuild/%s %s" % (script, branch))
 
         if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
             raise RuntimeError("Kernel not found on %s/vmlinuz.efi" % tmpdir.name)
