@@ -368,7 +368,7 @@ def event_push(payload):
     # This is a little bit hardcoded for our side
     #
     if repository == "zero-os/0-core":
-        baseimage = imagefrom(client, "zero-os/initramfs", branch)
+        baseimage = imagefrom(client, "zero-os/0-initramfs", branch)
         if not baseimage:
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
@@ -376,7 +376,7 @@ def event_push(payload):
         return build(shortname, baseimage.id, repository, "gig-build-cores.sh", branch, reponame, commit, False)
 
     if repository == "zero-os/0-fs":
-        baseimage = imagefrom(client, "zero-os/initramfs", branch)
+        baseimage = imagefrom(client, "zero-os/0-initramfs", branch)
         if not baseimage:
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
@@ -384,7 +384,7 @@ def event_push(payload):
         return build(shortname, baseimage.id, repository, "gig-build-g8ufs.sh", branch, reponame, commit, False)
 
     if repository == "g8os/initramfs-gig":
-        baseimage = imagefrom(client, "zero-os/initramfs", branch)
+        baseimage = imagefrom(client, "zero-os/0-initramfs", branch)
         if not baseimage:
             return builderror(shortname, 'No base image found for branch: %s' % branch)
 
