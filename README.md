@@ -1,5 +1,5 @@
 # Zero-OS Auto Builder
-This webservice is a build-process (like Jenkins) tuned for g8os internal development
+This webservice is a build-process (like Jenkins) tuned for Zero-OS internal development
 
 ## What does it do
 This service autobuild a kernel when someone push on theses repositories:
@@ -18,7 +18,7 @@ When a push is received from `zero-os/initramfs`:
 - A docker image is created (commit) and tagged with the branch as name
 
 When a push is received from `zero-os/core0` or `zero-os/g8ufs`:
-- A new docker based on `initramfs/[base-branch]` is started and only cores and g8ufs are rebuild
+- A new docker based on `initramfs/[base-branch]` is started and only cores and 0-FS are rebuild
 - When build is done, kernel is extracted and copied to `bootstrap` [zero-os/bootstrap]
 
 ## Configuration
