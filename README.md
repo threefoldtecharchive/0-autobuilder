@@ -1,7 +1,7 @@
-# G8OS Auto Builder
-This webservice is a build-process (like Jenkins) tuned for g8os internal developpement
+# Zero-OS Auto Builder
+This webservice is a build-process (like Jenkins) tuned for g8os internal development
 
-# What does it do
+## What does it do
 This service autobuild a kernel when someone push on theses repositories:
 - `zero-os/initramfs`
 - `zero-os/core0`
@@ -11,7 +11,7 @@ Theses repo have github's webhook configured to trigger on push.
 
 When a push is received, some actions are donc depending of the repository.
 
-# Actions
+## Actions
 When a push is received from `zero-os/initramfs`:
 - A new docker based on fresh `ubuntu:16.04` is started and a complete initramfs build is done
 - When build is done, kernel is extracted and copied to `bootstrap` [zero-os/bootstrap]
@@ -21,7 +21,7 @@ When a push is received from `zero-os/core0` or `zero-os/g8ufs`:
 - A new docker based on `initramfs/[base-branch]` is started and only cores and g8ufs are rebuild
 - When build is done, kernel is extracted and copied to `bootstrap` [zero-os/bootstrap]
 
-# Configuration
+## Configuration
 You can customize the service by editing `config.py`:
 - `TOKEN`: token used to authorize webhook (not used yet)
 - `KERNEL_TARGET`: path to store artifacts
@@ -32,7 +32,7 @@ You can customize the service by editing `config.py`:
 
 You need to specify webhook to point to this webserice, the endpoint is: `/build/[project]/hook`. `[project]` is an arbitrary name.
 
-# Neasted Docker
+## Neasted Docker
 This service use Docker to build the kernels, it needs a working docker. If you are already running this
 service in a docker, you'll need to gives access to host's docker (via volume or tcp).
 
@@ -41,10 +41,14 @@ if you are on a container already, the root of your container is not the same ro
 will be created on the host and not on your container, to fix this issue, you need to configure `TMP_DIRECTORY` to a shared
 directory between container and host.
 
-# Monitor
+## Monitor
 The endpoint `/monitor` will shows you in (nearly) realtime what's currently going on and previous build process
 
 You can reach some logs and specific build status with:
 - `/build/history`
 - `/build/status`
 - `/build/logs/<project>/<name>/<branch>`
+
+## Documentation
+
+For more documentation see the [`/docs`](./docs) directory, where you'll find a [table of contents](/docs/SUMMARY.md).
