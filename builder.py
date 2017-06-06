@@ -295,7 +295,7 @@ def build(shortname, baseimage, repository, script, branch, reponame, commit, re
             raise RuntimeError("Kernel not found on %s/vmlinuz.efi" % tmpdir.name)
 
         # extract kernel
-        kernel(shortname, tmpdir, branch, reponame, commit, False)
+        kernel(shortname, tmpdir, branch, reponame, commit, release)
 
         if release:
             # commit to baseimage
