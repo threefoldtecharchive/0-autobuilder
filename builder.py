@@ -198,7 +198,7 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
         return False
 
     print("[+] moving kernel into production")
-    os.rename(krnl, dest)
+    shutil.move(krnl, dest)
 
     if not release:
         basename = "zero-os-%s.efi" % branch
