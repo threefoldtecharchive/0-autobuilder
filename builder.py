@@ -272,6 +272,9 @@ def build(shortname, baseimage, repository, script, branch, reponame, commit, re
     status[shortname]['status'] = 'initializing'
     status[shortname]['docker'] = target.id
 
+    # update github statues
+    github_statues(status[shortname]['commit'], "pending", status[shortname]['repository'])
+
     if release:
         notice(shortname, 'Preparing system')
         execute(shortname, target, "apt-get update")
