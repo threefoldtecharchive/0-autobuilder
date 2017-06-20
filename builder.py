@@ -44,6 +44,13 @@ app.url_map.strict_slashes = False
 logs = {}
 status = {}
 
+buildstatus = {
+    "success": "build succeed",
+    "failed": "build failed, please check report",
+    "pending": "building...",
+}
+
+
 #
 # History
 #
@@ -231,16 +238,10 @@ def github_statues(commit, status, fullrepo):
     base = "https://api.github.com"
     headers = {"Authorization": "token " + config["GITHUB_TOKEN"]}
 
-    if status == "success":
-        description = "Build succeed"
-
-    else:
-        description = "Build failed, please check report"
-
     data = {
         "state": status,
         "target_url": "%s/report/%s" % (config['PUBLIC_HOST'], commit),
-        "description": description,
+        "description": buildstatus[status],
         "context": "gig-autobuilder"
     }
 
