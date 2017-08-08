@@ -338,6 +338,8 @@ def build(shortname, baseimage, repository, script, branch, reponame, commit, re
     builder = BuildThread(shortname, baseimage, repository, script, branch, reponame, commit, release)
     builder.start()
 
+    return "STARTED"
+
 #
 # Events
 #
