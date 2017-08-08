@@ -327,6 +327,10 @@ def event_ping(payload):
     return "OK"
 
 def event_push(payload):
+    if payload["deleted"] and len(payload['commits']) == 0:
+        print("[-] this is deleting push, skipping")
+        return "DELETED"
+
     # extracting data from payload
     repository = payload['repository']['full_name']
     ref = payload['ref']
