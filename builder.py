@@ -179,7 +179,7 @@ def builderror(shortname, message):
     history_push(shortname)
 
     # update github statues
-    github_statues(status[shortname]['commit'], "failed", status[shortname]['repository'])
+    github_statues(status[shortname]['commit'], "error", status[shortname]['repository'])
 
     del status[shortname]
 
