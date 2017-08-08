@@ -10,7 +10,7 @@ import json
 import traceback
 import requests
 from subprocess import call
-from flask import Flask, request, redirect, url_for, render_template, abort, jsonify, make_response
+from flask import Flask, request, redirect, url_for, render_template, abort, jsonify, make_response, Response
 from werkzeug.utils import secure_filename
 from werkzeug.contrib.fixers import ProxyFix
 from werkzeug.exceptions import HTTPException
@@ -326,6 +326,8 @@ def event_ping(payload):
     print("[+] repository: %s" % payload['repository']['full_name'])
     return "OK"
 
+# this push event returns streaming contents
+# to avoid timeout
 def event_push(payload):
     if payload["deleted"] and len(payload['commits']) == 0:
         print("[-] this is deleting push, skipping")
@@ -487,7 +489,7 @@ def build_hook(project):
 
     if request.headers['X-Github-Event'] == "push":
         print("[+] push event")
-        return event_push(payload)
+        return Response(event_push(payload), mimetype='text/plain')
 
     print("[-] unknown event: %s" % request.headers['X-Github-Event'])
     abort(400)
