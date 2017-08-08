@@ -9,6 +9,7 @@ import tarfile
 import json
 import traceback
 import requests
+import threading
 from subprocess import call
 from flask import Flask, request, redirect, url_for, render_template, abort, jsonify, make_response, Response
 from werkzeug.utils import secure_filename
@@ -254,70 +255,88 @@ def github_statues(commit, status, fullrepo):
 #
 # Build workflow
 #
+class BuildThread(threading.Thread):
+    def __init__(self, shortname, baseimage, repository, script, branch, reponame, commit, release):
+        threading.Thread.__init__(self)
+
+        self.shortname = shortname
+        self.baseimage = baseimage
+        self.repository = repository
+        self.script = script
+        self.branch = branch
+        self.reponame = reponame
+        self.commit = commit
+        self.release = release
+
+    def run(self):
+        # connecting docker
+        client = docker.from_env()
+
+        # creating temporary workspace
+        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-", dir=config['TMP_DIRECTORY'])
+        print("[+] temporary directory: %s" % tmpdir.name)
+
+        #
+        # This is a main project, we build it
+        # then make a base image from it
+        #
+        print("[+] starting container")
+        volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
+        target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes)
+
+        status[self.shortname]['status'] = 'initializing'
+        status[self.shortname]['docker'] = target.id
+
+        # update github statues
+        github_statues(status[self.shortname]['commit'], "pending", status[self.shortname]['repository'])
+
+        if self.release:
+            notice(self.shortname, 'Preparing system')
+            execute(self.shortname, target, "apt-get update")
+            execute(self.shortname, target, "apt-get install -y git")
+
+            notice(self.shortname, 'Cloning repository')
+            execute(self.shortname, target, "git clone -b '%s' https://github.com/%s" % (self.branch, self.repository))
+
+        notice(self.shortname, 'Executing script')
+        status[self.shortname]['status'] = 'building'
+
+        try:
+            # FIXME: should not happen
+            if not self.release:
+                execute(self.shortname, target, "sh -c 'cd /0-initramfs && git pull'")
+
+            # compiling
+            command = "bash /0-initramfs/autobuild/%s %s %s" % (self.script, self.branch, "0-initramfs")
+            execute(self.shortname, target, command)
+
+            if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
+                raise RuntimeError("Kernel not found on %s/vmlinuz.efi" % tmpdir.name)
+
+            # extract kernel
+            kernel(self.shortname, tmpdir, self.branch, self.reponame, self.commit, self.release)
+
+            if self.release:
+                # commit to baseimage
+                status[self.shortname]['status'] = 'committing'
+                target.commit(self.repository, self.branch)
+
+            # build well done
+            buildsuccess(self.shortname)
+
+        except Exception as e:
+            traceback.print_exc()
+            builderror(self.shortname, str(e))
+
+        # end of build process
+        target.remove(force=True)
+        tmpdir.cleanup()
+
+        return "OK"
+
 def build(shortname, baseimage, repository, script, branch, reponame, commit, release):
-    # connecting docker
-    client = docker.from_env()
-
-    # creating temporary workspace
-    tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-", dir=config['TMP_DIRECTORY'])
-    print("[+] temporary directory: %s" % tmpdir.name)
-
-    #
-    # This is a main project, we build it
-    # then make a base image from it
-    #
-    print("[+] starting container")
-    volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
-    target = client.containers.run(baseimage, tty=True, detach=True, volumes=volumes)
-
-    status[shortname]['status'] = 'initializing'
-    status[shortname]['docker'] = target.id
-
-    # update github statues
-    github_statues(status[shortname]['commit'], "pending", status[shortname]['repository'])
-
-    if release:
-        notice(shortname, 'Preparing system')
-        execute(shortname, target, "apt-get update")
-        execute(shortname, target, "apt-get install -y git")
-
-        notice(shortname, 'Cloning repository')
-        execute(shortname, target, "git clone -b '%s' https://github.com/%s" % (branch, repository))
-
-    notice(shortname, 'Executing script')
-    status[shortname]['status'] = 'building'
-
-    try:
-        # FIXME: should not happen
-        if not release:
-            execute(shortname, target, "sh -c 'cd /0-initramfs && git pull'")
-
-        # compiling
-        execute(shortname, target, "bash /0-initramfs/autobuild/%s %s %s" % (script, branch, "0-initramfs"))
-
-        if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
-            raise RuntimeError("Kernel not found on %s/vmlinuz.efi" % tmpdir.name)
-
-        # extract kernel
-        kernel(shortname, tmpdir, branch, reponame, commit, release)
-
-        if release:
-            # commit to baseimage
-            status[shortname]['status'] = 'committing'
-            target.commit(repository, branch)
-
-        # build well done
-        buildsuccess(shortname)
-
-    except Exception as e:
-        traceback.print_exc()
-        builderror(shortname, str(e))
-
-    # end of build process
-    target.remove(force=True)
-    tmpdir.cleanup()
-
-    return "OK"
+    builder = BuildThread(shortname, baseimage, repository, script, branch, reponame, commit, release)
+    builder.start()
 
 #
 # Events
@@ -489,7 +508,7 @@ def build_hook(project):
 
     if request.headers['X-Github-Event'] == "push":
         print("[+] push event")
-        return Response(event_push(payload), mimetype='text/plain')
+        return event_push(payload)
 
     print("[-] unknown event: %s" % request.headers['X-Github-Event'])
     abort(400)
