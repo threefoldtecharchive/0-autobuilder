@@ -192,7 +192,7 @@ def builderror(shortname, message):
 #
 def kernel(shortname, tmpdir, branch, reponame, commit, release):
     # format kernel "zero-os-BRANCH-generic.efi" if it's a release
-    suffix = 'generic' if release else "%s-%s" % (reponame, commit)
+    suffix = 'generic-%s' % commit if release else "%s-%s" % (reponame, commit)
     kname = "zero-os-%s-%s.efi" % (branch, suffix)
 
     print("[+] exporting kernel: %s" % kname)
@@ -208,20 +208,19 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
     print("[+] moving kernel into production")
     shutil.move(krnl, dest)
 
-    if not release:
-        basename = "zero-os-%s.efi" % branch
-        target = os.path.join(config['KERNEL_TARGET'], basename)
+    basename = "zero-os-%s.efi" % branch if not release else "zero-os-%s-generic.efi" % branch
+    target = os.path.join(config['KERNEL_TARGET'], basename)
 
-        if os.path.islink(target) or os.path.isfile(target):
-            os.remove(target)
+    if os.path.islink(target) or os.path.isfile(target):
+        os.remove(target)
 
-        # moving to kernel directory
-        now = os.getcwd()
-        os.chdir(config['KERNEL_TARGET'])
+    # moving to kernel directory
+    now = os.getcwd()
+    os.chdir(config['KERNEL_TARGET'])
 
-        # symlink last kernel to basename
-        os.symlink(kname, basename)
-        os.chdir(now)
+    # symlink last kernel to basename
+    os.symlink(kname, basename)
+    os.chdir(now)
 
     status[shortname]['artifact'] = kname
 
