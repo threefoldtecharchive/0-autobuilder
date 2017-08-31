@@ -47,7 +47,7 @@ status = {}
 
 buildstatus = {
     "success": "build succeed",
-    "failed": "build failed, please check report",
+    "error": "build failed, please check report",
     "pending": "building...",
 }
 
