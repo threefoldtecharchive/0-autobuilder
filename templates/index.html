@@ -130,10 +130,12 @@
         for(var idx in data) {
             zindex++;
 
-            if(data[idx]['commits'].length == 0)
-                continue;
+            var rootcommit = "";
 
-            var rootcommit = data[idx]['commits'][0]['id'].substr(0, 10);
+            if(data[idx]['commits'].length > 0) {
+                rootcommit = data[idx]['commits'][0]['id'].substr(0, 10);
+
+            } else rootcommit = 'docker-' + data[idx]['docker'];
 
             var root = $('<div>', {'class': 'panel panel-' + statuscolors[data[idx]['status']]});
             var heading = $('<div>', {'class': 'panel-heading'});
