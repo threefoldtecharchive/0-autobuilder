@@ -16,6 +16,7 @@ from werkzeug.utils import secure_filename
 from werkzeug.contrib.fixers import ProxyFix
 from werkzeug.exceptions import HTTPException
 from config import config
+from flist import AutobuilderFlistMonitor
 
 #
 # FIXME FIXME FIXME
@@ -41,6 +42,8 @@ if not os.path.exists(sublogfiles):
 
 app = Flask(__name__, static_url_path='/static')
 app.url_map.strict_slashes = False
+
+monitor = AutobuilderFlistMonitor(config)
 
 logs = {}
 status = {}
@@ -525,8 +528,49 @@ def index():
 def index_root():
     return render_template("index.html")
 
-print("[+] listening")
-app.run(host="0.0.0.0", port=config['HTTP_PORT'], debug=config['DEBUG'], threaded=True)
+#
+# flist
+#
+@app.route(config['monitor-update-endpoint'], methods=['GET', 'POST'])
+def monitor_update():
+    if not request.headers.get('X-Github-Event'):
+        abort(400)
+
+    payload = request.get_json()
+
+    if request.headers['X-Github-Event'] == "ping":
+        print("[+] update-endpoint: ping event for: %s" % payload["repository"]["full_name"])
+        return "PONG"
+
+    if request.headers['X-Github-Event'] == "push":
+        print("[+] update-endpoint: push event")
+        return monitor.update(payload)
+
+    print("[-] unknown event: %s" % request.headers['X-Github-Event'])
+    abort(400)
+
+@app.route(config['repository-push-endpoint'], methods=['GET', 'POST'])
+def monitor_push():
+    if not request.headers.get('X-Github-Event'):
+        abort(400)
+
+    payload = request.get_json()
+
+    if request.headers['X-Github-Event'] == "ping":
+        print("[+] push-endpoint: ping event for: %s" % payload["repository"]["full_name"])
+        return "PONG"
+
+    if request.headers['X-Github-Event'] == "push":
+        print("[+] push-endpoint: push event")
+        return monitor.push(payload)
+
+    print("[-] unknown event: %s" % request.headers['X-Github-Event'])
+    abort(400)
+
+print("[+] configuring flist-watcher")
+monitor.initialize()
+monitor.dump()
+monitor.webhooks()
 
 print("[+] starting webapp")
 app.run(host=config['http-listen'], port=config['http-port'], debug=config['debug'], threaded=True, use_reloader=False)
