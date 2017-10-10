@@ -32,10 +32,10 @@ from config import config
 thispath = os.path.dirname(os.path.realpath(__file__))
 BASEPATH = os.path.join(thispath)
 
-if not os.path.exists(config['LOGS_DIRECTORY']):
-    os.mkdir(config['LOGS_DIRECTORY'])
+if not os.path.exists(config['logs-directory']):
+    os.mkdir(config['logs-directory'])
 
-sublogfiles = os.path.join(config['LOGS_DIRECTORY'], "commits")
+sublogfiles = os.path.join(config['logs-directory'], "commits")
 if not os.path.exists(sublogfiles):
     os.mkdir(sublogfiles)
 
@@ -59,7 +59,7 @@ def history_get(limit=None):
     return json.loads(history_raw(limit))
 
 def history_raw(limit=None):
-    filepath = os.path.join(config['LOGS_DIRECTORY'], "history.json")
+    filepath = os.path.join(config['logs-directory'], "history.json")
 
     if not os.path.isfile(filepath):
         return "[]\n"
@@ -93,7 +93,7 @@ def history_push(shortname):
 
     history.insert(0, item)
 
-    filepath = os.path.join(config['LOGS_DIRECTORY'], "history.json")
+    filepath = os.path.join(config['logs-directory'], "history.json")
 
     with open(filepath, "w") as f:
         f.write(json.dumps(history))
@@ -200,7 +200,7 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
     # now we have the kernel on our tmpdir
     # let's copy it to the right location
     krnl = os.path.join(tmpdir.name, "vmlinuz.efi")
-    dest = os.path.join(config['KERNEL_TARGET'], kname)
+    dest = os.path.join(config['kernel-directory'], kname)
 
     if not os.path.isfile(krnl):
         return False
@@ -209,14 +209,14 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
     shutil.move(krnl, dest)
 
     basename = "zero-os-%s.efi" % branch if not release else "zero-os-%s-generic.efi" % branch
-    target = os.path.join(config['KERNEL_TARGET'], basename)
+    target = os.path.join(config['kernel-directory'], basename)
 
     if os.path.islink(target) or os.path.isfile(target):
         os.remove(target)
 
     # moving to kernel directory
     now = os.getcwd()
-    os.chdir(config['KERNEL_TARGET'])
+    os.chdir(config['kernel-directory'])
 
     # symlink last kernel to basename
     os.symlink(kname, basename)
@@ -231,16 +231,16 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
 #
 def github_statues(commit, status, fullrepo):
     # skipping if no token provided
-    if config["GITHUB_TOKEN"] == "":
+    if config["github-token"] == "":
         print("[-] no github token configured")
         return
 
     base = "https://api.github.com"
-    headers = {"Authorization": "token " + config["GITHUB_TOKEN"]}
+    headers = {"Authorization": "token " + config["github-token"]}
 
     data = {
         "state": status,
-        "target_url": "%s/report/%s" % (config['PUBLIC_HOST'], commit),
+        "target_url": "%s/report/%s" % (config['public-host'], commit),
         "description": buildstatus[status],
         "context": "gig-autobuilder"
     }
@@ -272,7 +272,7 @@ class BuildThread(threading.Thread):
         client = docker.from_env()
 
         # creating temporary workspace
-        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-", dir=config['TMP_DIRECTORY'])
+        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-", dir=config['temp-directory'])
         print("[+] temporary directory: %s" % tmpdir.name)
 
         #
@@ -387,7 +387,7 @@ def event_push(payload):
         'commits': payload['commits'],
         'commit': payload['head_commit']['id'],
         'artifact': None,
-        'logfile': os.path.join(config['LOGS_DIRECTORY'], "commits", payload['head_commit']['id']),
+        'logfile': os.path.join(config['logs-directory'], "commits", payload['head_commit']['id']),
     }
 
     # cleaning previous logfile if any
@@ -445,7 +445,7 @@ def global_logs(project, name, branch):
 
 @app.route('/report/<hash>', methods=['GET'])
 def global_commit_logs(hash):
-    logfile = os.path.join(config['LOGS_DIRECTORY'], "commits", hash)
+    logfile = os.path.join(config['logs-directory'], "commits", hash)
 
     if not os.path.isfile(logfile):
         abort(404)
@@ -528,3 +528,5 @@ def index_root():
 print("[+] listening")
 app.run(host="0.0.0.0", port=config['HTTP_PORT'], debug=config['DEBUG'], threaded=True)
 
+print("[+] starting webapp")
+app.run(host=config['http-listen'], port=config['http-port'], debug=config['debug'], threaded=True, use_reloader=False)

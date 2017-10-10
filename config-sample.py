@@ -3,21 +3,31 @@
 #
 config = {
     # Github webhook secret (not used now)
-    'TOKEN': "debugmode1234abcd",
+    'token': "1234",
 
-    'KERNEL_TARGET': '/tmp/kernels/',
-    'LOGS_DIRECTORY': '/tmp/build-logs',
-    'TMP_DIRECTORY': None,
+    'kernel-directory': '/tmp/kernels/',
+    'logs-directory': '/tmp/build-logs',
+    'temp-directory': None,
 
     # HTTP listening port
-    'HTTP_PORT': 5560,
+    'http-port': 5560,
+    'http-listen': "0.0.0.0",
 
     # Public web url to reach the build system
-    'PUBLIC_HOST': "http://your.host",
+    'public-host': "http://domain.tld",
 
     # Github token to update build statues
-    'GITHUB_TOKEN': "",
+    'github-token': "",
+
+    # GitHub flist-monitor configuration repository
+    'configuration-repository': "user/config-repo",
+
+    # Endpoint for configuration update event
+    'monitor-update-endpoint': "/hook/monitor-update",
+
+    # Endpoint for watch'd repository push event
+    'repository-push-endpoint': "/hook/monitor-watch",
 
     # Enable debug or production mode
-    'DEBUG': True,
+    'debug': True,
 }
