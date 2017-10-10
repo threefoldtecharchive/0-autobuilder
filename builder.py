@@ -531,6 +531,11 @@ def index_root():
 #
 # flist
 #
+def monitor_bad_request(payload):
+    response = jsonify(payload)
+    response.status_code = 400
+    return response
+
 @app.route(config['monitor-update-endpoint'], methods=['GET', 'POST'])
 def monitor_update():
     if not request.headers.get('X-Github-Event'):
@@ -544,7 +549,12 @@ def monitor_update():
 
     if request.headers['X-Github-Event'] == "push":
         print("[+] update-endpoint: push event")
-        return monitor.update(payload)
+        response = monitor.update(payload)
+
+        if response['status'] == 'error':
+            return monitor_bad_request(response)
+
+        return jsonify(response)
 
     print("[-] unknown event: %s" % request.headers['X-Github-Event'])
     abort(400)
@@ -562,7 +572,12 @@ def monitor_push():
 
     if request.headers['X-Github-Event'] == "push":
         print("[+] push-endpoint: push event")
-        return monitor.push(payload)
+        response = monitor.push(payload)
+
+        if response['status'] == 'error':
+            return monitor_bad_request(response)
+
+        return jsonify(response)
 
     print("[-] unknown event: %s" % request.headers['X-Github-Event'])
     abort(400)

@@ -106,6 +106,10 @@ class AutobuilderFlistMonitor:
         print(self.github('/repos/%s/hooks' % repository, options))
 
     def webhook_config(self, target):
+        """
+        Generate a json ready to use to configure github-webhook using
+        target as endpoint url
+        """
         config = {
             "name": 'web',
             "active": True,
@@ -116,6 +120,9 @@ class AutobuilderFlistMonitor:
         return config
 
     def github(self, endpoint, data=None):
+        """
+        Do a Github API request (GET or POST is data is not None, data will be sent as JSON)
+        """
         headers = {'Authorization': 'token %s' % self.token}
 
         if data:
@@ -125,26 +132,41 @@ class AutobuilderFlistMonitor:
 
     def push(self, payload):
         """
-        Return actions to do for a received push, None will be return if this
-        repository/branch is not monitored
+        Method triggered when a push-event is send to a monitored repository
+        Basicly, this method will trigger a build (and do the most useful job)
         """
         if payload["deleted"] and len(payload['commits']) == 0:
             print("[-] this is deleting push, skipping")
-            return "DELETED"
+            return {'status': 'success'}
 
         # extracting data from payload
         repository = payload['repository']['full_name']
-        print(repository)
-        print(payload)
-        return "OK"
+        if not self.repositories.get(repository):
+            print("[-] push: %s: we don't monitor this repository" % repository)
+            return {'status': 'error', 'message': 'repository not tracked'}
+
+        ref = payload['ref']
+        branch = os.path.basename(ref)
+
+        if not self.repositories[repository].get(branch):
+            print("[-] push: %s: we don't monitor this branch: %s" % (repository, branch))
+            return {'status': 'error', 'message': 'branch not tracked'}
+
+        print("[+] push: %s: build trigger accepted (branch: %s)" % (repository, branch))
+
+        # print(payload)
+
+        return {'status': 'success'}
 
     def update(self, payload):
         """
-
+        Method triggered when a push is sent to the configuration-repository
+        This method will do some security check then reload the configuration-repository
+        and parse again the contents in order to be sync'd with upstream data
         """
         if payload["deleted"] and len(payload['commits']) == 0:
             print("[-] this is deleting push, skipping")
-            return "DELETED"
+            return {'status': 'success'}
 
         # extracting data from payload
         repository = payload['repository']['full_name']
@@ -152,7 +174,7 @@ class AutobuilderFlistMonitor:
 
         if repository != self.configtarget:
             print("[-] wrong repository, received: %s, excepted: %s" % (repository, self.configtarget))
-            return "DENIED"
+            return {'status': 'error', 'message': 'repository not configured as configuration-repository'}
 
         print("[+] webhook: reloading configuration")
         previously = self.repositories
@@ -161,4 +183,4 @@ class AutobuilderFlistMonitor:
         self.dump()
         self.webhooks(previously)
 
-        return "OK"
+        return {'status': 'success'}
