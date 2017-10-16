@@ -4,6 +4,7 @@ class AutobuilderGitHub:
     def __init__(self, config):
         self.config = config
         self.token = config['github-token']
+        self.baseurl = "https://api.github.com"
 
         self.buildstatus = {
             "success": "build succeed",
@@ -22,9 +23,9 @@ class AutobuilderGitHub:
         headers = {'Authorization': 'token %s' % self.token}
 
         if data:
-            return requests.post('https://api.github.com' + endpoint, headers=headers, json=data).json()
+            return requests.post(self.baseurl + endpoint, headers=headers, json=data).json()
 
-        return requests.get('https://api.github.com' + endpoint, headers=headers).json()
+        return requests.get(self.baseurl + endpoint, headers=headers).json()
 
     def statuses(self, commit, status, fullrepo):
         """
@@ -37,7 +38,7 @@ class AutobuilderGitHub:
             "context": "gig-autobuilder"
         }
 
-        endpoint = "%s/repos/%s/statuses/%s" % (base, fullrepo, commit)
+        endpoint = "/repos/" + fullrepo + "/statuses/" + commit
         print("[+] github: set status to: %s" % endpoint)
 
         print(self.request(endpoint, data))

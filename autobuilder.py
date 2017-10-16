@@ -51,11 +51,11 @@ app.url_map.strict_slashes = False
 print("[+] initializing github")
 github = AutobuilderGitHub(config)
 
-print("[+] loading flist-autobuilder")
-monitor = AutobuilderFlistMonitor(config, github)
-
 print("[+] initializing buildio")
 buildio = BuildIO(config, github)
+
+print("[+] loading flist-autobuilder")
+monitor = AutobuilderFlistMonitor(config, github, buildio)
 
 print("[+] initializing zerohub")
 zerohub = ZeroHubClient(config)

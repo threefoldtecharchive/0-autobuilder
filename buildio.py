@@ -63,7 +63,7 @@ class BuildIO:
 
         history.insert(0, item)
 
-        filepath = os.path.join(config['logs-directory'], "history.json")
+        filepath = os.path.join(self.config['logs-directory'], "history.json")
 
         with open(filepath, "w") as f:
             f.write(json.dumps(history))
@@ -72,14 +72,14 @@ class BuildIO:
     Build entry
     """
     def create(self):
-        id = uuid.uuid4()
+        id = str(uuid.uuid4())
 
         entry = {
             'docker': "",
             'status': 'creating',
             'console': collections.deque(maxlen=20),
             'started': int(time.time()),
-            'repository': repository,
+            'repository': None,
             'ended': None,
             'error': None,
             'commits': [],
@@ -98,7 +98,7 @@ class BuildIO:
     Build Status
     """
     def finish(self, id, status, message):
-        print("[-] %s: %s" % (id, message))
+        print("[-] %s [%s]: %s" % (id, status, message))
 
         self.status[id]['status'] = status
         self.status[id]['ended'] = int(time.time())
@@ -107,10 +107,10 @@ class BuildIO:
             self.status[id]['error'] = message
 
         # saving object in the history
-        self.push(id)
+        self.commit(id)
 
         # update github statues
-        self.github.statues(self.status[id]['commit'], status, self.status[id]['repository'])
+        self.github.statuses(self.status[id]['commit'], status, self.status[id]['repository'])
 
         # removing object from running state
         del self.status[id]
@@ -118,13 +118,13 @@ class BuildIO:
     """
     Build output
     """
-    def notice(id, message):
+    def notice(self, id, message):
         """
         Add a simple notice message on the output build process
         """
         self.status[id]['console'].append("\n>>> %s\n" % message)
 
-    def execute(id, target, command):
+    def execute(self, id, target, command):
         """
         Execute a command inside docker container and track output
         """
@@ -170,14 +170,20 @@ class BuildIOTask:
 
     def success(self):
         """
-        Finish a build with success state
+        Finish task-build with success state
         """
         self.buildio.finish(self.taskid, 'success', None)
         return "OK"
 
     def error(self, message):
         """
-        Finish a build in error state
+        Finish task-build in error state
         """
         self.buildio.finish(self.taskid, 'error', message)
         return "FAILED"
+
+    def execute(self, target, command):
+        """
+        Execute a command inside task'd docker container and track output
+        """
+        return self.buildio.execute(self.taskid, target, command)

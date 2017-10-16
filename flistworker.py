@@ -8,11 +8,13 @@ import threading
 import docker
 
 class AutobuilderFlistThread(threading.Thread):
-    def __init__(self, config, github):
+    def __init__(self, config, github, task):
         threading.Thread.__init__(self)
 
         self.config = config
         self.github = github
+
+        self.task = task
 
         self.baseimage = "ubuntu:16.04"
         self.shortname = "flist-debug"
@@ -21,8 +23,6 @@ class AutobuilderFlistThread(threading.Thread):
         self.command = "autobuild/gig-flist-build.sh"
 
     def run(self):
-        status = {self.shortname: {}}
-
         # connecting docker
         client = docker.from_env()
 
@@ -34,24 +34,27 @@ class AutobuilderFlistThread(threading.Thread):
         volumes = {tmpdir.name: {'bind': '/tmp/archive', 'mode': 'rw'}}
         target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes)
 
-        status[self.shortname]['status'] = 'initializing'
-        status[self.shortname]['docker'] = target.id
+        self.task.set_status('initializing')
+        self.task.set_docker(target.id)
+        self.task.set_repository(self.repository)
+        self.task.set_commit('123456')
+        self.task.set_commits([])
 
         # update github statues
         # github_statues(status[self.shortname]['commit'], "pending", status[self.shortname]['repository'])
 
-        notice(self.shortname, 'Preparing system')
-        execute(self.shortname, target, "apt-get update")
-        execute(self.shortname, target, "apt-get install -y git")
+        self.task.notice('Preparing system')
+        self.task.execute(target, "apt-get update")
+        self.task.execute(target, "apt-get install -y git")
 
-        notice(self.shortname, 'Cloning repository')
-        execute(self.shortname, target, "git clone -b '%s' https://github.com/%s" % (self.branch, self.repository))
+        self.task.notice('Cloning repository')
+        self.task.execute(target, "git clone -b '%s' https://github.com/%s" % (self.branch, self.repository))
 
-        notice(self.shortname, 'Executing script')
-        status[self.shortname]['status'] = 'building'
+        self.task.notice('Executing script')
+        self.task.set_status('building')
 
         command = "bash %s/%s" % (os.path.basename(self.repository), self.command)
-        execute(self.shortname, target, command)
+        self.task.execute(target, command)
 
         """
         if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
@@ -59,7 +62,7 @@ class AutobuilderFlistThread(threading.Thread):
         """
 
         # build well done
-        # buildsuccess(self.shortname)
+        self.task.success()
 
         """
         except Exception as e:

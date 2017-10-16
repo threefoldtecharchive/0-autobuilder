@@ -7,12 +7,13 @@ import requests
 from flistworker import AutobuilderFlistThread
 
 class AutobuilderFlistMonitor:
-    def __init__(self, config, github):
+    def __init__(self, config, github, buildio):
         self.config = config
         self.configtarget = config['configuration-repository']
         self.token = config['github-token']
         self.repositories = {}
         self.github = github
+        self.buildio = buildio
 
         self.watch = {
             "monitor": config['public-host'] + config['monitor-update-endpoint'],
@@ -157,8 +158,10 @@ class AutobuilderFlistMonitor:
 
         print("[+] push: %s: build trigger accepted (branch: %s)" % (repository, branch))
 
-        worker = AutobuilderFlistThread(self.config, self.github)
-        worker.run()
+        task = self.buildio.create()
+
+        worker = AutobuilderFlistThread(self.config, self.github, task)
+        worker.start()
 
         return {'status': 'success'}
 
