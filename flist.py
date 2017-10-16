@@ -4,12 +4,15 @@ import subprocess
 import time
 import yaml
 import requests
+from flistworker import AutobuilderFlistThread
 
 class AutobuilderFlistMonitor:
-    def __init__(self, config):
+    def __init__(self, config, github):
+        self.config = config
         self.configtarget = config['configuration-repository']
         self.token = config['github-token']
         self.repositories = {}
+        self.github = github
 
         self.watch = {
             "monitor": config['public-host'] + config['monitor-update-endpoint'],
@@ -91,7 +94,7 @@ class AutobuilderFlistMonitor:
         """
         print("[+] webhook: managing: %s" % repository)
 
-        existing = self.github('/repos/%s/hooks' % repository)
+        existing = self.github.request('/repos/%s/hooks' % repository)
         for hook in existing:
             if not hook['config'].get('url'):
                 continue
@@ -154,7 +157,8 @@ class AutobuilderFlistMonitor:
 
         print("[+] push: %s: build trigger accepted (branch: %s)" % (repository, branch))
 
-        # print(payload)
+        worker = AutobuilderFlistThread(self.config, self.github)
+        worker.run()
 
         return {'status': 'success'}
 

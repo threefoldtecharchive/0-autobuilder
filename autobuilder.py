@@ -20,6 +20,7 @@ from config import config
 from flist import AutobuilderFlistMonitor
 from github import AutobuilderGitHub
 from zerohub import ZeroHubClient
+from buildio import BuildIO
 
 #
 # FIXME FIXME FIXME
@@ -43,94 +44,26 @@ sublogfiles = os.path.join(config['logs-directory'], "commits")
 if not os.path.exists(sublogfiles):
     os.mkdir(sublogfiles)
 
+print("[+] loading flask website")
 app = Flask(__name__, static_url_path='/static')
 app.url_map.strict_slashes = False
 
-monitor = AutobuilderFlistMonitor(config)
+print("[+] initializing github")
 github = AutobuilderGitHub(config)
+
+print("[+] loading flist-autobuilder")
+monitor = AutobuilderFlistMonitor(config, github)
+
+print("[+] initializing buildio")
+buildio = BuildIO(config, github)
+
+print("[+] initializing zerohub")
 zerohub = ZeroHubClient(config)
 
-logs = {}
-status = {}
 
-
-#
-# History
-#
-def history_get(limit=None):
-    return json.loads(history_raw(limit))
-
-def history_raw(limit=None):
-    filepath = os.path.join(config['logs-directory'], "history.json")
-
-    if not os.path.isfile(filepath):
-        return "[]\n"
-
-    with open(filepath, "r") as f:
-        contents = f.read()
-
-    if limit is not None:
-        temp = json.loads(contents)
-        return json.dumps(temp[0:limit])
-
-    if not contents:
-        contents = "[]\n"
-
-    return contents
-
-def history_push(shortname):
-    history = history_get()
-
-    item = {
-        'name': shortname,
-        'status': status[shortname]['status'],
-        'monitor': consoleof(status[shortname]['console']),
-        'docker': status[shortname]['docker'][0:10],
-        'started': status[shortname]['started'],
-        'ended': status[shortname]['ended'],
-        'error': status[shortname]['error'],
-        'commits': status[shortname]['commits'],
-        'artifact': status[shortname]['artifact'],
-    }
-
-    history.insert(0, item)
-
-    filepath = os.path.join(config['logs-directory'], "history.json")
-
-    with open(filepath, "w") as f:
-        f.write(json.dumps(history))
-
-
-
-#
-# Helpers
-#
-def notice(shortname, message):
-    status[shortname]['console'].append("\n>>> %s\n" % message)
-
-def execute(shortname, target, command):
-    dockid = target.id[0:10]
-
-    for line in target.exec_run(command, stream=True, stderr=True):
-        # debug to console
-        print("[%s] %s" % (dockid, line.strip().decode('utf-8')))
-
-        # append to status
-        status[shortname]['console'].append(line.decode('utf-8'))
-        logs[shortname] += line.decode('utf-8')
-
-        # save to logfile
-        with open(status[shortname]['logfile'], "a") as logfile:
-            logfile.write(line.decode('utf-8'))
-
-def consoleof(console):
-    output = ""
-
-    for line in console:
-        output += line
-
-    return output
-
+"""
+Remaining out-of-scope helpers
+"""
 def imagefrom(client, repository, branch):
     for image in client.images.list():
         if len(image.tags) == 0:
@@ -154,38 +87,6 @@ def imagefrom(client, repository, branch):
 
     # fallback to master
     return imagefrom(client, repository, "master")
-
-
-
-#
-# build status
-#
-def buildsuccess(shortname):
-    status[shortname]['status'] = 'success'
-    status[shortname]['ended'] = int(time.time())
-    history_push(shortname)
-
-    # update github statues
-    github.statues(status[shortname]['commit'], "success", status[shortname]['repository'])
-
-    del status[shortname]
-
-    return "OK"
-
-def builderror(shortname, message):
-    print("[-] %s: %s" % (shortname, message))
-
-    status[shortname]['status'] = 'error'
-    status[shortname]['error'] = message
-    status[shortname]['ended'] = int(time.time())
-    history_push(shortname)
-
-    # update github statues
-    github.statues(status[shortname]['commit'], "error", status[shortname]['repository'])
-
-    del status[shortname]
-
-    return "FAILED"
 
 #
 # Extract the kernel from a container
@@ -229,39 +130,13 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
     return True
 
 #
-# Github statues
-#
-"""
-def github_statues(commit, status, fullrepo):
-    # skipping if no token provided
-    if config["github-token"] == "":
-        print("[-] no github token configured")
-        return
-
-    base = "https://api.github.com"
-    headers = {"Authorization": "token " + config["github-token"]}
-
-    data = {
-        "state": status,
-        "target_url": "%s/report/%s" % (config['public-host'], commit),
-        "description": buildstatus[status],
-        "context": "gig-autobuilder"
-    }
-
-    endpoint = "%s/repos/%s/statuses/%s" % (base, fullrepo, commit)
-    print("[+] set status to: %s" % endpoint)
-
-    req = requests.post(endpoint, headers=headers, json=data)
-    print(req.json())
-"""
-
-#
 # Build workflow
 #
 class BuildThread(threading.Thread):
-    def __init__(self, shortname, baseimage, repository, script, branch, reponame, commit, release, github):
+    def __init__(self, task, shortname, baseimage, repository, script, branch, reponame, commit, release, buildio):
         threading.Thread.__init__(self)
 
+        self.task = task
         self.shortname = shortname
         self.baseimage = baseimage
         self.repository = repository
@@ -270,14 +145,14 @@ class BuildThread(threading.Thread):
         self.reponame = reponame
         self.commit = commit
         self.release = release
-        self.github = github
+        self.buildio = buildio
 
     def run(self):
         # connecting docker
         client = docker.from_env()
 
         # creating temporary workspace
-        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-", dir=config['temp-directory'])
+        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-", dir=self.config['temp-directory'])
         print("[+] temporary directory: %s" % tmpdir.name)
 
         #
@@ -288,31 +163,32 @@ class BuildThread(threading.Thread):
         volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
         target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes)
 
-        status[self.shortname]['status'] = 'initializing'
-        status[self.shortname]['docker'] = target.id
+        self.task.set_status('initializing')
+        self.task.set_docker(target.id)
 
         # update github statues
-        self.github.statues(status[self.shortname]['commit'], "pending", status[self.shortname]['repository'])
+        # self.buildio.github.statues(status[self.shortname]['commit'], "pending", status[self.shortname]['repository'])
+        # --> self.buildio.pending(taskid)
 
         if self.release:
-            notice(self.shortname, 'Preparing system')
-            execute(self.shortname, target, "apt-get update")
-            execute(self.shortname, target, "apt-get install -y git")
+            self.task.notice('Preparing system')
+            self.task.execute(target, "apt-get update")
+            self.task.execute(target, "apt-get install -y git")
 
-            notice(self.shortname, 'Cloning repository')
-            execute(self.shortname, target, "git clone -b '%s' https://github.com/%s" % (self.branch, self.repository))
+            self.task.notice('Cloning repository')
+            self.task.execute(target, "git clone -b '%s' https://github.com/%s" % (self.branch, self.repository))
 
-        notice(self.shortname, 'Executing script')
-        status[self.shortname]['status'] = 'building'
+        self.buildio.notice('Executing script')
+        self.buildio.set_status('building')
 
         try:
             # FIXME: should not happen
             if not self.release:
-                execute(self.shortname, target, "sh -c 'cd /0-initramfs && git pull'")
+                self.task.execute(target, "sh -c 'cd /0-initramfs && git pull'")
 
             # compiling
             command = "bash /0-initramfs/autobuild/%s %s %s" % (self.script, self.branch, "0-initramfs")
-            execute(self.shortname, target, command)
+            self.task.execute(target, command)
 
             if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
                 raise RuntimeError("Kernel not found on %s/vmlinuz.efi" % tmpdir.name)
@@ -322,15 +198,15 @@ class BuildThread(threading.Thread):
 
             if self.release:
                 # commit to baseimage
-                status[self.shortname]['status'] = 'committing'
+                self.task.set_status('committing')
                 target.commit(self.repository, self.branch)
 
             # build well done
-            buildsuccess(self.shortname)
+            self.task.success()
 
         except Exception as e:
             traceback.print_exc()
-            builderror(self.shortname, str(e))
+            self.task.error(str(e))
 
         # end of build process
         target.remove(force=True)
@@ -338,8 +214,8 @@ class BuildThread(threading.Thread):
 
         return "OK"
 
-def build(shortname, baseimage, repository, script, branch, reponame, commit, release):
-    builder = BuildThread(shortname, baseimage, repository, script, branch, reponame, commit, release)
+def build(task, shortname, baseimage, repository, script, branch, reponame, commit, release):
+    builder = BuildThread(task, shortname, baseimage, repository, script, branch, reponame, commit, release, buildio)
     builder.start()
 
     return "STARTED"
@@ -374,30 +250,27 @@ def event_push(payload):
     print("[+] repository: %s, branch: %s" % (repository, branch))
 
     # checking for existing tasks
-    if status.get(shortname):
+    """
+    FIXME FIXME FIXME
+
+    if buildio.status.get(shortname):
         if status[shortname]['status'] not in ['success', 'error']:
             print("[-] task already running, ignoring")
             return "BUSY"
+    """
 
     # creating entry for that build
-    logs[shortname] = ""
-    status[shortname] = {
-        'docker': "",
-        'status': 'preparing',
-        'console': collections.deque(maxlen=20),
-        'started': int(time.time()),
-        'repository': repository,
-        'ended': None,
-        'error': None,
-        'commits': payload['commits'],
-        'commit': payload['head_commit']['id'],
-        'artifact': None,
-        'logfile': os.path.join(config['logs-directory'], "commits", payload['head_commit']['id']),
-    }
+    task = buildio.create()
+    task.set_repository(repository)
+    task.set_commit(payload['head_commit']['id'])
+    task.set_commits(payload['commits'])
+    task.set_status('preparing')
 
     # cleaning previous logfile if any
+    '''
     if os.path.isfile(status[shortname]['logfile']):
         os.remove(status[shortname]['logfile'])
+    '''
 
     #
     # This is a little bit hardcoded for our side
@@ -405,40 +278,41 @@ def event_push(payload):
     if repository == "zero-os/0-core":
         baseimage = imagefrom(client, "zero-os/0-initramfs", branch)
         if not baseimage:
-            return builderror(shortname, 'No base image found for branch: %s' % branch)
+            return task.error('No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
-        return build(shortname, baseimage.id, repository, "gig-build-cores.sh", branch, reponame, commit, False)
+        return build(task, shortname, baseimage.id, repository, "gig-build-cores.sh", branch, reponame, commit, False)
 
     if repository == "zero-os/0-fs":
         baseimage = imagefrom(client, "zero-os/0-initramfs", branch)
         if not baseimage:
-            return builderror(shortname, 'No base image found for branch: %s' % branch)
+            return task.error('No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
-        return build(shortname, baseimage.id, repository, "gig-build-g8ufs.sh", branch, reponame, commit, False)
+        return build(task, shortname, baseimage.id, repository, "gig-build-g8ufs.sh", branch, reponame, commit, False)
 
     if repository == "g8os/initramfs-gig":
         baseimage = imagefrom(client, "zero-os/0-initramfs", branch)
         if not baseimage:
-            return builderror(shortname, 'No base image found for branch: %s' % branch)
+            return task.error('No base image found for branch: %s' % branch)
 
         print("[+] base image found: %s" % baseimage.tags)
-        return build(shortname, baseimage.id, repository, "gig-build-extensions.sh", branch, reponame, commit, False)
+        return build(task, shortname, baseimage.id, repository, "gig-build-extensions.sh", branch, reponame, commit, False)
 
     if repository == "zero-os/0-initramfs":
-        return build(shortname, "ubuntu:16.04", repository, "gig-build.sh", branch, reponame, commit, True)
+        return build(task, shortname, "ubuntu:16.04", repository, "gig-build.sh", branch, reponame, commit, True)
 
-    builderror(shortname, "Unknown repository, we don't follow this one.")
+    task.error("Unknown repository, we don't follow this one.")
     abort(404)
 
 
 
-#
-# Routing
-#
+"""
+Web Application routing
+"""
 @app.route('/logs/<project>/<name>/<branch>', methods=['GET'])
 def global_logs(project, name, branch):
+    '''
     collapse = "%s/%s/%s" % (project, name, branch)
     if not logs.get(collapse):
         abort(404)
@@ -447,6 +321,8 @@ def global_logs(project, name, branch):
     response.headers["Content-Type"] = "text/plain"
 
     return response
+    '''
+    return "FIXME"
 
 @app.route('/report/<hash>', methods=['GET'])
 def global_commit_logs(hash):
@@ -466,11 +342,12 @@ def global_commit_logs(hash):
 @app.route('/build/status', methods=['GET'])
 def global_status():
     output = {}
+    empty = ""
 
-    for key, item in status.items():
+    for key, item in buildio.status.items():
         output[key] = {
             'status': item['status'],
-            'monitor': consoleof(item['console']),
+            'monitor': empty.join(item['console']),
             'docker': item['docker'][0:10],
             'started': item['started'],
             'ended': item['ended'],
@@ -483,14 +360,14 @@ def global_status():
 
 @app.route('/build/history/full', methods=['GET'])
 def global_history_full():
-    response = make_response(history_raw())
+    response = make_response(buildio.raw())
     response.headers["Content-Type"] = "application/json"
 
     return response
 
 @app.route('/build/history', methods=['GET'])
 def global_history():
-    response = make_response(history_raw(25))
+    response = make_response(buildio.raw(25))
     response.headers["Content-Type"] = "application/json"
 
     return response
@@ -584,11 +461,9 @@ def monitor_push():
     print("[-] unknown event: %s" % request.headers['X-Github-Event'])
     abort(400)
 
-print("[+] initializing zerohub")
-zerohub.refresh()
-zerohub.upload('/tmp/uploadme-light.tar.gz')
-sys.exit(1)
-
+"""
+Web Application monitor
+"""
 print("[+] configuring flist-watcher")
 monitor.initialize()
 monitor.dump()
