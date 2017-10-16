@@ -1,4 +1,5 @@
 import os
+import sys
 import shutil
 import time
 import tempfile
@@ -17,6 +18,8 @@ from werkzeug.contrib.fixers import ProxyFix
 from werkzeug.exceptions import HTTPException
 from config import config
 from flist import AutobuilderFlistMonitor
+from github import AutobuilderGitHub
+from zerohub import ZeroHubClient
 
 #
 # FIXME FIXME FIXME
@@ -44,15 +47,11 @@ app = Flask(__name__, static_url_path='/static')
 app.url_map.strict_slashes = False
 
 monitor = AutobuilderFlistMonitor(config)
+github = AutobuilderGitHub(config)
+zerohub = ZeroHubClient(config)
 
 logs = {}
 status = {}
-
-buildstatus = {
-    "success": "build succeed",
-    "error": "build failed, please check report",
-    "pending": "building...",
-}
 
 
 #
@@ -167,7 +166,7 @@ def buildsuccess(shortname):
     history_push(shortname)
 
     # update github statues
-    github_statues(status[shortname]['commit'], "success", status[shortname]['repository'])
+    github.statues(status[shortname]['commit'], "success", status[shortname]['repository'])
 
     del status[shortname]
 
@@ -182,7 +181,7 @@ def builderror(shortname, message):
     history_push(shortname)
 
     # update github statues
-    github_statues(status[shortname]['commit'], "error", status[shortname]['repository'])
+    github.statues(status[shortname]['commit'], "error", status[shortname]['repository'])
 
     del status[shortname]
 
@@ -232,6 +231,7 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
 #
 # Github statues
 #
+"""
 def github_statues(commit, status, fullrepo):
     # skipping if no token provided
     if config["github-token"] == "":
@@ -253,12 +253,13 @@ def github_statues(commit, status, fullrepo):
 
     req = requests.post(endpoint, headers=headers, json=data)
     print(req.json())
+"""
 
 #
 # Build workflow
 #
 class BuildThread(threading.Thread):
-    def __init__(self, shortname, baseimage, repository, script, branch, reponame, commit, release):
+    def __init__(self, shortname, baseimage, repository, script, branch, reponame, commit, release, github):
         threading.Thread.__init__(self)
 
         self.shortname = shortname
@@ -269,6 +270,7 @@ class BuildThread(threading.Thread):
         self.reponame = reponame
         self.commit = commit
         self.release = release
+        self.github = github
 
     def run(self):
         # connecting docker
@@ -290,7 +292,7 @@ class BuildThread(threading.Thread):
         status[self.shortname]['docker'] = target.id
 
         # update github statues
-        github_statues(status[self.shortname]['commit'], "pending", status[self.shortname]['repository'])
+        self.github.statues(status[self.shortname]['commit'], "pending", status[self.shortname]['repository'])
 
         if self.release:
             notice(self.shortname, 'Preparing system')
@@ -581,6 +583,11 @@ def monitor_push():
 
     print("[-] unknown event: %s" % request.headers['X-Github-Event'])
     abort(400)
+
+print("[+] initializing zerohub")
+zerohub.refresh()
+zerohub.upload('/tmp/uploadme-light.tar.gz')
+sys.exit(1)
 
 print("[+] configuring flist-watcher")
 monitor.initialize()

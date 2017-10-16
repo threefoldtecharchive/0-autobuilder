@@ -28,6 +28,12 @@ config = {
     # Endpoint for watch'd repository push event
     'repository-push-endpoint': "/hook/monitor-watch",
 
+    # ZeroHub **refreshable** jwt-token
+    'zerohub-token': '',
+
+    # ZeroHub username acting upload (needs to belong to the jwt scope)
+    'zerohub-username': '',
+
     # Enable debug or production mode
     'debug': True,
 }
