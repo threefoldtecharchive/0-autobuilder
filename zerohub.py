@@ -1,11 +1,11 @@
 import requests
 
 class ZeroHubClient:
-    def __init__(self, config):
-        self.config = config
+    def __init__(self, components):
+        self.root = components
 
-        self.token = config['zerohub-token']
-        self.user = config['zerohub-username']
+        self.token = self.root.config['zerohub-token']
+        self.user = self.root.config['zerohub-username']
 
         self.baseurl = 'https://staging.hub.gig.tech'
         self.baseiyo = 'https://itsyou.online'

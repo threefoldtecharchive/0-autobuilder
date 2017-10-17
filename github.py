@@ -1,9 +1,10 @@
 import requests
 
 class AutobuilderGitHub:
-    def __init__(self, config):
-        self.config = config
-        self.token = config['github-token']
+    def __init__(self, components):
+        self.root = components
+
+        self.token = self.root.config['github-token']
         self.baseurl = "https://api.github.com"
 
         self.buildstatus = {
@@ -27,13 +28,13 @@ class AutobuilderGitHub:
 
         return requests.get(self.baseurl + endpoint, headers=headers).json()
 
-    def statuses(self, commit, status, fullrepo):
+    def statuses(self, commit, taskid, status, fullrepo):
         """
         Report build status to github
         """
         data = {
             "state": status,
-            "target_url": "%s/report/%s" % (self.config['public-host'], commit),
+            "target_url": "%s/report/%s" % (self.root.config['public-host'], taskid),
             "description": self.buildstatus[status],
             "context": "gig-autobuilder"
         }

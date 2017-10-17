@@ -22,43 +22,43 @@ from github import AutobuilderGitHub
 from zerohub import ZeroHubClient
 from buildio import BuildIO
 
-#
-# FIXME FIXME FIXME
-# ===============================================
-# Refactore me please, this should use classes and not a flat file like this
-# I'm really ugly.
-# ===============================================
-# FIXME FIXME FIXME
-#
+class AutobuilderComponents:
+    def __init__(self, config):
+        print("[+] initializing empty components")
 
-#
-# Theses location should works out-of-box if you use default settings
-#
-thispath = os.path.dirname(os.path.realpath(__file__))
-BASEPATH = os.path.join(thispath)
+        self.config = config
 
-if not os.path.exists(config['logs-directory']):
-    os.mkdir(config['logs-directory'])
+        self.github = None
+        self.zerohub = None
+        self.buildio = None
+        self.monitor = None
+        self.flist = None
 
-sublogfiles = os.path.join(config['logs-directory'], "commits")
-if not os.path.exists(sublogfiles):
-    os.mkdir(sublogfiles)
+        # ensure logs path
+        if not os.path.exists(config['logs-directory']):
+            os.mkdir(config['logs-directory'])
+
+        sublogfiles = os.path.join(config['logs-directory'], "commits")
+        if not os.path.exists(sublogfiles):
+            os.mkdir(sublogfiles)
+
+components = AutobuilderComponents(config)
 
 print("[+] loading flask website")
 app = Flask(__name__, static_url_path='/static')
 app.url_map.strict_slashes = False
 
 print("[+] initializing github")
-github = AutobuilderGitHub(config)
+components.github = AutobuilderGitHub(components)
 
 print("[+] initializing buildio")
-buildio = BuildIO(config, github)
+components.buildio = BuildIO(components)
 
 print("[+] loading flist-autobuilder")
-monitor = AutobuilderFlistMonitor(config, github, buildio)
+components.monitor = AutobuilderFlistMonitor(components)
 
 print("[+] initializing zerohub")
-zerohub = ZeroHubClient(config)
+components.zerohub = ZeroHubClient(components)
 
 
 """
@@ -103,7 +103,7 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
     # now we have the kernel on our tmpdir
     # let's copy it to the right location
     krnl = os.path.join(tmpdir.name, "vmlinuz.efi")
-    dest = os.path.join(config['kernel-directory'], kname)
+    dest = os.path.join(components.config['kernel-directory'], kname)
 
     if not os.path.isfile(krnl):
         return False
@@ -112,14 +112,14 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
     shutil.move(krnl, dest)
 
     basename = "zero-os-%s.efi" % branch if not release else "zero-os-%s-generic.efi" % branch
-    target = os.path.join(config['kernel-directory'], basename)
+    target = os.path.join(components.config['kernel-directory'], basename)
 
     if os.path.islink(target) or os.path.isfile(target):
         os.remove(target)
 
     # moving to kernel directory
     now = os.getcwd()
-    os.chdir(config['kernel-directory'])
+    os.chdir(components.config['kernel-directory'])
 
     # symlink last kernel to basename
     os.symlink(kname, basename)
@@ -133,7 +133,7 @@ def kernel(shortname, tmpdir, branch, reponame, commit, release):
 # Build workflow
 #
 class BuildThread(threading.Thread):
-    def __init__(self, task, shortname, baseimage, repository, script, branch, reponame, commit, release, buildio):
+    def __init__(self, task, shortname, baseimage, repository, script, branch, reponame, commit, release, components):
         threading.Thread.__init__(self)
 
         self.task = task
@@ -145,7 +145,7 @@ class BuildThread(threading.Thread):
         self.reponame = reponame
         self.commit = commit
         self.release = release
-        self.buildio = buildio
+        self.root = components
 
     def run(self):
         # connecting docker
@@ -178,8 +178,8 @@ class BuildThread(threading.Thread):
             self.task.notice('Cloning repository')
             self.task.execute(target, "git clone -b '%s' https://github.com/%s" % (self.branch, self.repository))
 
-        self.buildio.notice('Executing script')
-        self.buildio.set_status('building')
+        self.root.buildio.notice('Executing script')
+        self.root.buildio.set_status('building')
 
         try:
             # FIXME: should not happen
@@ -215,7 +215,7 @@ class BuildThread(threading.Thread):
         return "OK"
 
 def build(task, shortname, baseimage, repository, script, branch, reponame, commit, release):
-    builder = BuildThread(task, shortname, baseimage, repository, script, branch, reponame, commit, release, buildio)
+    builder = BuildThread(task, shortname, baseimage, repository, script, branch, reponame, commit, release, components)
     builder.start()
 
     return "STARTED"
@@ -234,20 +234,23 @@ def event_push(payload):
         print("[-] this is deleting push, skipping")
         return "DELETED"
 
+    task = components.buildio.create()
+    task.set_from_push(payload)
+
+    """
     # extracting data from payload
     repository = payload['repository']['full_name']
     ref = payload['ref']
     branch = os.path.basename(ref)
     shortname = "%s/%s" % (repository, branch)
     commit = payload['head_commit']['id'][0:8]
+    reponame = os.path.basename(repository)
+    """
 
     # connecting docker
     client = docker.from_env()
 
-    # extract repository name
-    reponame = os.path.basename(repository)
-
-    print("[+] repository: %s, branch: %s" % (repository, branch))
+    print("[+] repository: %s, branch: %s" % (task.get('repository'), task.get('branch')))
 
     # checking for existing tasks
     """
@@ -259,12 +262,14 @@ def event_push(payload):
             return "BUSY"
     """
 
+    """
     # creating entry for that build
-    task = buildio.create()
+
     task.set_repository(repository)
     task.set_commit(payload['head_commit']['id'])
     task.set_commits(payload['commits'])
     task.set_status('preparing')
+    """
 
     # cleaning previous logfile if any
     '''
@@ -276,31 +281,31 @@ def event_push(payload):
     # This is a little bit hardcoded for our side
     #
     if repository == "zero-os/0-core":
-        baseimage = imagefrom(client, "zero-os/0-initramfs", branch)
+        baseimage = imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
         if not baseimage:
-            return task.error('No base image found for branch: %s' % branch)
+            return task.error('No base image found for branch: %s' % task.get('branch'))
 
         print("[+] base image found: %s" % baseimage.tags)
-        return build(task, shortname, baseimage.id, repository, "gig-build-cores.sh", branch, reponame, commit, False)
+        return build(task, baseimage.id, "gig-build-cores.sh", False)
 
     if repository == "zero-os/0-fs":
-        baseimage = imagefrom(client, "zero-os/0-initramfs", branch)
+        baseimage = imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
         if not baseimage:
-            return task.error('No base image found for branch: %s' % branch)
+            return task.error('No base image found for branch: %s' % task.get('branch'))
 
         print("[+] base image found: %s" % baseimage.tags)
-        return build(task, shortname, baseimage.id, repository, "gig-build-g8ufs.sh", branch, reponame, commit, False)
+        return build(task, baseimage.id, "gig-build-g8ufs.sh", False)
 
     if repository == "g8os/initramfs-gig":
-        baseimage = imagefrom(client, "zero-os/0-initramfs", branch)
+        baseimage = imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
         if not baseimage:
-            return task.error('No base image found for branch: %s' % branch)
+            return task.error('No base image found for branch: %s' % task.get('branch'))
 
         print("[+] base image found: %s" % baseimage.tags)
-        return build(task, shortname, baseimage.id, repository, "gig-build-extensions.sh", branch, reponame, commit, False)
+        return build(task, baseimage.id, "gig-build-extensions.sh", False)
 
     if repository == "zero-os/0-initramfs":
-        return build(task, shortname, "ubuntu:16.04", repository, "gig-build.sh", branch, reponame, commit, True)
+        return build(task, "ubuntu:16.04", "gig-build.sh", True)
 
     task.error("Unknown repository, we don't follow this one.")
     abort(404)
@@ -326,7 +331,7 @@ def global_logs(project, name, branch):
 
 @app.route('/report/<hash>', methods=['GET'])
 def global_commit_logs(hash):
-    logfile = os.path.join(config['logs-directory'], "commits", hash)
+    logfile = os.path.join(components.config['logs-directory'], "commits", hash)
 
     if not os.path.isfile(logfile):
         abort(404)
@@ -344,7 +349,7 @@ def global_status():
     output = {}
     empty = ""
 
-    for key, item in buildio.status.items():
+    for key, item in components.buildio.status.items():
         output[key] = {
             'status': item['status'],
             'monitor': empty.join(item['console']),
@@ -360,14 +365,14 @@ def global_status():
 
 @app.route('/build/history/full', methods=['GET'])
 def global_history_full():
-    response = make_response(buildio.raw())
+    response = make_response(components.buildio.raw())
     response.headers["Content-Type"] = "application/json"
 
     return response
 
 @app.route('/build/history', methods=['GET'])
 def global_history():
-    response = make_response(buildio.raw(25))
+    response = make_response(components.buildio.raw(25))
     response.headers["Content-Type"] = "application/json"
 
     return response
@@ -415,7 +420,7 @@ def monitor_bad_request(payload):
     response.status_code = 400
     return response
 
-@app.route(config['monitor-update-endpoint'], methods=['GET', 'POST'])
+@app.route(components.config['monitor-update-endpoint'], methods=['GET', 'POST'])
 def monitor_update():
     if not request.headers.get('X-Github-Event'):
         abort(400)
@@ -428,7 +433,7 @@ def monitor_update():
 
     if request.headers['X-Github-Event'] == "push":
         print("[+] update-endpoint: push event")
-        response = monitor.update(payload)
+        response = components.monitor.update(payload)
 
         if response['status'] == 'error':
             return monitor_bad_request(response)
@@ -438,7 +443,7 @@ def monitor_update():
     print("[-] unknown event: %s" % request.headers['X-Github-Event'])
     abort(400)
 
-@app.route(config['repository-push-endpoint'], methods=['GET', 'POST'])
+@app.route(components.config['repository-push-endpoint'], methods=['GET', 'POST'])
 def monitor_push():
     if not request.headers.get('X-Github-Event'):
         abort(400)
@@ -451,7 +456,7 @@ def monitor_push():
 
     if request.headers['X-Github-Event'] == "push":
         print("[+] push-endpoint: push event")
-        response = monitor.push(payload)
+        response = components.monitor.push(payload)
 
         if response['status'] == 'error':
             return monitor_bad_request(response)
@@ -465,9 +470,15 @@ def monitor_push():
 Web Application monitor
 """
 print("[+] configuring flist-watcher")
-monitor.initialize()
-monitor.dump()
-monitor.webhooks()
+components.monitor.initialize()
+components.monitor.dump()
+components.monitor.webhooks()
 
 print("[+] starting webapp")
-app.run(host=config['http-listen'], port=config['http-port'], debug=config['debug'], threaded=True, use_reloader=False)
+app.run(
+    host=components.config['http-listen'],
+    port=components.config['http-port'],
+    debug=components.config['debug'],
+    threaded=True,
+    use_reloader=False
+)

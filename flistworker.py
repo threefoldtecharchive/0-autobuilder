@@ -8,18 +8,16 @@ import threading
 import docker
 
 class AutobuilderFlistThread(threading.Thread):
-    def __init__(self, config, github, task):
+    def __init__(self, components, task):
         threading.Thread.__init__(self)
 
-        self.config = config
-        self.github = github
-
+        self.root = components
         self.task = task
 
         self.baseimage = "ubuntu:16.04"
-        self.shortname = "flist-debug"
-        self.branch = "master"
-        self.repository = "maxux/hooktest"
+        self.shortname = task.get('name')
+        self.branch = task.get('branch')
+        self.repository = task.get('repository')
         self.command = "autobuild/gig-flist-build.sh"
 
     def run(self):
@@ -27,7 +25,7 @@ class AutobuilderFlistThread(threading.Thread):
         client = docker.from_env()
 
         # creating temporary workspace
-        tmpdir = tempfile.TemporaryDirectory(prefix="flist-build-", dir=self.config['temp-directory'])
+        tmpdir = tempfile.TemporaryDirectory(prefix="flist-build-", dir=self.root.config['temp-directory'])
         print("[+] temporary directory: %s" % tmpdir.name)
 
         print("[+] starting container")
@@ -36,12 +34,9 @@ class AutobuilderFlistThread(threading.Thread):
 
         self.task.set_status('initializing')
         self.task.set_docker(target.id)
-        self.task.set_repository(self.repository)
-        self.task.set_commit('123456')
-        self.task.set_commits([])
 
         # update github statues
-        # github_statues(status[self.shortname]['commit'], "pending", status[self.shortname]['repository'])
+        self.task.pending()
 
         self.task.notice('Preparing system')
         self.task.execute(target, "apt-get update")
@@ -69,6 +64,9 @@ class AutobuilderFlistThread(threading.Thread):
             traceback.print_exc()
             builderror(self.shortname, str(e))
         """
+
+        # upload artifact to zero-hub
+
 
         # end of build process
         target.remove(force=True)

@@ -7,17 +7,15 @@ import requests
 from flistworker import AutobuilderFlistThread
 
 class AutobuilderFlistMonitor:
-    def __init__(self, config, github, buildio):
-        self.config = config
-        self.configtarget = config['configuration-repository']
-        self.token = config['github-token']
+    def __init__(self, components):
+        self.root = components
+        self.configtarget = self.root.config['configuration-repository']
+
         self.repositories = {}
-        self.github = github
-        self.buildio = buildio
 
         self.watch = {
-            "monitor": config['public-host'] + config['monitor-update-endpoint'],
-            "repository": config['public-host'] + config['repository-push-endpoint'],
+            "monitor": self.root.config['public-host'] + self.root.config['monitor-update-endpoint'],
+            "repository": self.root.config['public-host'] + self.root.config['repository-push-endpoint'],
         }
 
         print("[+] update endpoint: %s" % self.watch['monitor'])
@@ -95,7 +93,7 @@ class AutobuilderFlistMonitor:
         """
         print("[+] webhook: managing: %s" % repository)
 
-        existing = self.github.request('/repos/%s/hooks' % repository)
+        existing = self.root.github.request('/repos/%s/hooks' % repository)
         for hook in existing:
             if not hook['config'].get('url'):
                 continue
@@ -107,7 +105,7 @@ class AutobuilderFlistMonitor:
 
         # no webhook matching our url found, adding it
         options = self.webhook_config(target)
-        print(self.github('/repos/%s/hooks' % repository, options))
+        print(self.root.github('/repos/%s/hooks' % repository, options))
 
     def webhook_config(self, target):
         """
@@ -122,17 +120,6 @@ class AutobuilderFlistMonitor:
         }
 
         return config
-
-    def github(self, endpoint, data=None):
-        """
-        Do a Github API request (GET or POST is data is not None, data will be sent as JSON)
-        """
-        headers = {'Authorization': 'token %s' % self.token}
-
-        if data:
-            return requests.post('https://api.github.com' + endpoint, headers=headers, json=data).json()
-
-        return requests.get('https://api.github.com' + endpoint, headers=headers).json()
 
     def push(self, payload):
         """
@@ -158,9 +145,10 @@ class AutobuilderFlistMonitor:
 
         print("[+] push: %s: build trigger accepted (branch: %s)" % (repository, branch))
 
-        task = self.buildio.create()
+        task = self.root.buildio.create()
+        task.set_from_push(payload)
 
-        worker = AutobuilderFlistThread(self.config, self.github, task)
+        worker = AutobuilderFlistThread(self.root, task)
         worker.start()
 
         return {'status': 'success'}

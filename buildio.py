@@ -6,9 +6,8 @@ import time
 import collections
 
 class BuildIO:
-    def __init__(self, config, github):
-        self.config = config
-        self.github = github
+    def __init__(self, components):
+        self.root = components
 
         self.status = {}
 
@@ -25,7 +24,7 @@ class BuildIO:
         """
         Returns raw text object of the backlog, with optional limits
         """
-        filepath = os.path.join(self.config['logs-directory'], "history.json")
+        filepath = os.path.join(self.root.config['logs-directory'], "history.json")
 
         if not os.path.isfile(filepath):
             return "[]\n"
@@ -50,7 +49,7 @@ class BuildIO:
         empty = ""
 
         item = {
-            'name': id,
+            'name': self.status[id]['name'],
             'status': self.status[id]['status'],
             'monitor': empty.join(self.status[id]['console']),
             'docker': self.status[id]['docker'][0:10],
@@ -63,7 +62,7 @@ class BuildIO:
 
         history.insert(0, item)
 
-        filepath = os.path.join(self.config['logs-directory'], "history.json")
+        filepath = os.path.join(self.root.config['logs-directory'], "history.json")
 
         with open(filepath, "w") as f:
             f.write(json.dumps(history))
@@ -75,7 +74,7 @@ class BuildIO:
         id = str(uuid.uuid4())
 
         entry = {
-            'docker': "",
+            'docker': '',
             'status': 'creating',
             'console': collections.deque(maxlen=20),
             'started': int(time.time()),
@@ -85,11 +84,12 @@ class BuildIO:
             'commits': [],
             'commit': None,
             'artifact': None,
-            'logfile': os.path.join(self.config['logs-directory'], "commits", id),
+            'branch': None,
+            'logfile': os.path.join(self.root.config['logs-directory'], "commits", id),
         }
 
         self.status[id] = entry
-        return BuildIOTask(self, id)
+        return BuildIOTask(self.root, id)
 
     def get(self, id):
         return self.status.get(id)
@@ -98,8 +98,6 @@ class BuildIO:
     Build Status
     """
     def finish(self, id, status, message):
-        print("[-] %s [%s]: %s" % (id, status, message))
-
         self.status[id]['status'] = status
         self.status[id]['ended'] = int(time.time())
 
@@ -110,7 +108,8 @@ class BuildIO:
         self.commit(id)
 
         # update github statues
-        self.github.statuses(self.status[id]['commit'], status, self.status[id]['repository'])
+        entry = self.status[id]
+        self.root.github.statuses(entry['commit'], id, status, entry['repository'])
 
         # removing object from running state
         del self.status[id]
@@ -143,47 +142,86 @@ class BuildIO:
                 logfile.write(line.decode('utf-8'))
 
 class BuildIOTask:
-    def __init__(self, buildio, id):
-        self.buildio = buildio
+    """
+    Wrap BuildIO class with a specific task-id
+    This class represent a task (a build request) and handle logs, executions, etc.
+    """
+    def __init__(self, components, id):
+        self.root = components
         self.taskid = id
 
     def set_repository(self, repository):
-        self.buildio.status[self.taskid]['repository'] = repository
+        self.root.buildio.status[self.taskid]['repository'] = repository
 
     def set_artifact(self, artifact):
-        self.buildio.status[self.taskid]['artifact'] = artifact
+        self.root.buildio.status[self.taskid]['artifact'] = artifact
 
     def set_status(self, status):
-        self.buildio.status[self.taskid]['status'] = status
+        self.root.buildio.status[self.taskid]['status'] = status
 
     def set_commit(self, commitid):
-        self.buildio.status[self.taskid]['commit'] = commitid
+        self.root.buildio.status[self.taskid]['commit'] = commitid
 
     def set_commits(self, commits):
-        self.buildio.status[self.taskid]['commits'] = commits
+        self.root.buildio.status[self.taskid]['commits'] = commits
 
     def set_docker(self, dockerid):
-        self.buildio.status[self.taskid]['docker'] = dockerid
+        self.root.buildio.status[self.taskid]['docker'] = dockerid
+
+    def set_name(self, name):
+        self.root.buildio.status[self.taskid]['name'] = name
+
+    def set_branch(self, branch):
+        self.root.buildio.status[self.taskid]['branch'] = branch
+
+
+    def set_from_push(self, payload):
+        repository = payload['repository']['full_name']
+        reponame = os.path.basename(repository)
+
+        ref = payload['ref']
+        branch = os.path.basename(ref)
+
+        shortname = "%s/%s" % (repository, branch)
+        shortcommit = payload['head_commit']['id'][0:8]
+
+        self.set_repository(repository)
+        self.set_commit(payload['head_commit']['id'])
+        self.set_commits(payload['commits'])
+        self.set_name(shortname)
+        self.set_branch(branch)
+
+
+    def get(self, key):
+        return self.root.buildio.status[self.taskid].get(key)
+
 
     def notice(self, message):
-        return self.buildio.notice(self.taskid, message)
+        return self.root.buildio.notice(self.taskid, message)
+
 
     def success(self):
         """
         Finish task-build with success state
         """
-        self.buildio.finish(self.taskid, 'success', None)
+        print("[+] %s [success]" % self.taskid)
+        self.root.buildio.finish(self.taskid, 'success', None)
         return "OK"
 
     def error(self, message):
         """
         Finish task-build in error state
         """
-        self.buildio.finish(self.taskid, 'error', message)
+        print("[-] %s [error]: %s" % (self.taskid, message))
+        self.root.buildio.finish(self.taskid, 'error', message)
         return "FAILED"
+
+    def pending(self):
+        self.root.github.statuses(self.get('commit'), self.taskid, "pending", self.get('repository'))
+
 
     def execute(self, target, command):
         """
         Execute a command inside task'd docker container and track output
         """
-        return self.buildio.execute(self.taskid, target, command)
+        return self.root.buildio.execute(self.taskid, target, command)
