@@ -123,6 +123,9 @@ class BuildIO:
         """
         self.status[id]['console'].append("\n>>> %s\n" % message)
 
+        with open(self.status[id]['logfile'], "a") as logfile:
+            logfile.write("\n>>> %s\n" % message)
+
     def execute(self, id, target, command):
         """
         Execute a command inside docker container and track output
@@ -135,7 +138,6 @@ class BuildIO:
 
             # append to status
             self.status[id]['console'].append(line.decode('utf-8'))
-            # logs[shortname] += line.decode('utf-8')
 
             # save to logfile
             with open(self.status[id]['logfile'], "a") as logfile:

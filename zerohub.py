@@ -47,5 +47,6 @@ class ZeroHubClient:
         """
         headers = {'Authorization': 'bearer %s' % self.token}
 
-        self.token = requests.get('%s/v1/oauth/jwt/refresh' % self.baseiyo, headers=headers)
+        response = requests.get('%s/v1/oauth/jwt/refresh' % self.baseiyo, headers=headers)
+        self.token = response.text
         self.cookies['caddyoauth'] = self.token

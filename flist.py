@@ -45,6 +45,22 @@ class AutobuilderFlistMonitor:
             pathname = '/'.join(rootdir)
             self.repositories[pathname] = self.parse(root, files)
 
+    def _yaml_validate(self, contents):
+        if not contents.get('buildscripts'):
+            print("[-] buildscripts not defined, skipping")
+            return False
+
+        for buildscript in contents['buildscripts']:
+            if not contents.get(buildscript):
+                print("[-] buildscript '%s' not defined" % buildscript)
+                return False
+
+            if not contents[buildscript].get('artifact'):
+                print("[-] buildscripts '%s' have no artifact")
+                return False
+
+        return True
+
     def parse(self, root, files):
         branches = {}
 
@@ -55,7 +71,13 @@ class AutobuilderFlistMonitor:
             branchname = file[:-5]
 
             # loading branch config
-            branches[branchname] = yaml.load(open(filepath, 'r'))
+            contents = yaml.load(open(filepath, 'r'))
+
+            if not self._yaml_validate(contents):
+                continue
+
+            branches[branchname] = contents
+
 
         return branches
 
@@ -149,6 +171,7 @@ class AutobuilderFlistMonitor:
         task.set_from_push(payload)
 
         worker = AutobuilderFlistThread(self.root, task)
+        worker.recipe = self.repositories[repository][branch]
         worker.start()
 
         return {'status': 'success'}
