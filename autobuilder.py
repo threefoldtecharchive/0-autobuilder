@@ -9,36 +9,29 @@ from modules.webapp import AutobuilderWebApp
 
 class AutobuilderComponents:
     def __init__(self, config):
-        print("[+] initializing empty components")
-
+        print("[+] initializing components")
         self.config = config
 
-        self.webapp = None
-        self.github = None
-        self.initram = None
-        self.zerohub = None
-        self.buildio = None
-        self.monitor = None
-        self.flist = None
+        print("[+] loading module: flask-webapp")
+        self.webapp = AutobuilderWebApp(self)
+
+        print("[+] loading module: github")
+        self.github = AutobuilderGitHub(self)
+
+        print("[+] loading module: buildio")
+        self.buildio = BuildIO(self)
+
+        print("[+] loading module: flist-autobuilder")
+        self.monitor = AutobuilderFlistMonitor(self)
+
+        print("[+] loading module: zerohub")
+        self.zerohub = ZeroHubClient(self)
+
+        print("[+] loading module: initramfs")
+        self.initram = AutobuilderInitramfs(self)
 
 if __name__ == '__main__':
     app = AutobuilderComponents(config)
-
-    print("[+] loading module: flask-webapp")
-    app.webapp = AutobuilderWebApp(app)
-
-    print("[+] loading module: github")
-    app.github = AutobuilderGitHub(app)
-
-    print("[+] loading module: buildio")
-    app.buildio = BuildIO(app)
-
-    print("[+] loading module: flist-autobuilder")
-    app.monitor = AutobuilderFlistMonitor(app)
-
-    print("[+] loading module: zerohub")
-    app.zerohub = ZeroHubClient(app)
-
 
     print("[+] configuring: flist-watcher")
     app.monitor.initialize()
