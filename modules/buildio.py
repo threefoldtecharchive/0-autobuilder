@@ -130,14 +130,21 @@ class BuildIO:
     """
     Build output
     """
+    def log(self, id, message):
+        """
+        Add a log entry in the output build process
+        """
+        message = message + "\n"
+        self.status[id]['console'].append(message)
+
+        with open(self.status[id]['logfile'], "a") as logfile:
+            logfile.write(message)
+
     def notice(self, id, message):
         """
         Add a simple notice message on the output build process
         """
-        self.status[id]['console'].append("\n>>> %s\n" % message)
-
-        with open(self.status[id]['logfile'], "a") as logfile:
-            logfile.write("\n>>> %s\n" % message)
+        return self.log(id, "\n>>> %s" % message)
 
     def execute(self, id, target, command):
         """
@@ -210,6 +217,9 @@ class BuildIOTask:
     def get(self, key):
         return self.root.buildio.status[self.taskid].get(key)
 
+
+    def log(self, message):
+        return self.root.buildio.log(self.taskid, message)
 
     def notice(self, message):
         return self.root.buildio.notice(self.taskid, message)

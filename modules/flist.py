@@ -29,6 +29,7 @@ class AutobuilderFlistMonitor:
         self.configtarget = self.root.config['configuration-repository']
 
         self.repositories = {}
+        self.compiled = True
 
         self.watch = {
             "monitor": self.root.config['public-host'] + self.root.config['monitor-update-endpoint'],
@@ -38,15 +39,34 @@ class AutobuilderFlistMonitor:
         print("[+] update endpoint: %s" % self.watch['monitor'])
         print("[+] push endpoint: %s" % self.watch['repository'])
 
+    def current_revision(self, path):
+        previous = os.getcwd()
+        os.chdir(path)
+
+        commitid = subprocess.run(['git', 'rev-parse', 'HEAD'], stdout=subprocess.PIPE)
+        os.chdir(previous)
+
+        return commitid.stdout.decode('utf-8').strip()
+
     def initialize(self):
         """
         Initialize repositories to watch and ensure webhooks
         """
         repo = tempfile.TemporaryDirectory(prefix="autobuild-git-")
 
+        # initializing error flag
+        self.compiled = True
+
         # cloning monitoring repository to a temporary directory
         args = ['git', 'clone', 'https://github.com/' + self.configtarget, repo.name]
         subprocess.run(args)
+
+        task = self.root.buildio.create()
+        task.set_name('Configuration reloader')
+        task.set_commit(self.current_revision(repo.name))
+        task.set_repository(self.configtarget)
+        task.set_docker('system')
+        task.notice('Loading configuration')
 
         # parsing the repository contents
         for root, dirs, files in os.walk(repo.name):
@@ -60,25 +80,37 @@ class AutobuilderFlistMonitor:
                 continue
 
             pathname = '/'.join(rootdir)
-            self.repositories[pathname] = self.parse(root, files)
 
-    def _yaml_validate(self, contents):
+            task.log('Parsing repository: %s' % pathname)
+            self.repositories[pathname] = self.parse(root, files, task)
+
+        if not self.compiled:
+            task.notice("Configuration loaded, with some errors")
+            return task.error("Some configuration files could not be parsed correctly")
+
+        task.notice("Configuration loaded without any errors")
+        task.success()
+
+    def _yaml_validate(self, contents, task):
         if not contents.get('buildscripts'):
             print("[-] WARNING: buildscripts not defined, skipping")
+            task.log("Error: buildscripts not defined, ignoring this branch")
             return False
 
         for buildscript in contents['buildscripts']:
             if not contents.get(buildscript):
                 print("[-] WARNING: buildscript '%s' not defined" % buildscript)
+                task.log("ERROR: buildscript '%s' not defined, ignoring this branch" % buildscript)
                 return False
 
             if not contents[buildscript].get('artifact'):
                 print("[-] WARNING: buildscripts '%s' have no artifact")
+                task.log("Error: buildscript '%s' have no artifact, ignoring this branch" % buildscript)
                 return False
 
         return True
 
-    def parse(self, root, files):
+    def parse(self, root, files, task):
         branches = {}
 
         for file in files:
@@ -90,11 +122,12 @@ class AutobuilderFlistMonitor:
             # loading branch config
             contents = yaml.load(open(filepath, 'r'))
 
-            if not self._yaml_validate(contents):
+            if not self._yaml_validate(contents, task):
+                self.compiled = False
                 continue
 
+            task.log("Tracking branch: %s" % branchname)
             branches[branchname] = contents
-
 
         return branches
 
