@@ -1,7 +1,4 @@
-from flask import Flask, request, redirect, url_for, render_template, abort, jsonify, make_response, Response
-from werkzeug.utils import secure_filename
-from werkzeug.contrib.fixers import ProxyFix
-from werkzeug.exceptions import HTTPException
+from flask import Flask, request, render_template, abort, jsonify, make_response
 
 class AutobuilderWebApp:
     def __init__(self, components):
@@ -27,7 +24,7 @@ class AutobuilderWebApp:
 
         @self.app.route('/report/<hash>', methods=['GET'])
         def global_commit_logs(hash):
-            logfile = os.path.join(components.config['logs-directory'], "commits", hash)
+            logfile = os.path.join(self.root.config['logs-directory'], "commits", hash)
 
             if not os.path.isfile(logfile):
                 abort(404)
@@ -45,7 +42,7 @@ class AutobuilderWebApp:
             output = {}
             empty = ""
 
-            for key, item in components.buildio.status.items():
+            for key, item in self.root.buildio.status.items():
                 output[key] = {
                     'status': item['status'],
                     'monitor': empty.join(item['console']),
@@ -61,14 +58,14 @@ class AutobuilderWebApp:
 
         @self.app.route('/build/history/full', methods=['GET'])
         def global_history_full():
-            response = make_response(components.buildio.raw())
+            response = make_response(self.root.buildio.raw())
             response.headers["Content-Type"] = "application/json"
 
             return response
 
         @self.app.route('/build/history', methods=['GET'])
         def global_history():
-            response = make_response(components.buildio.raw(25))
+            response = make_response(self.root.buildio.raw(25))
             response.headers["Content-Type"] = "application/json"
 
             return response
@@ -116,7 +113,7 @@ class AutobuilderWebApp:
             response.status_code = 400
             return response
 
-        @self.app.route(components.config['monitor-update-endpoint'], methods=['GET', 'POST'])
+        @self.app.route(self.root.config['monitor-update-endpoint'], methods=['GET', 'POST'])
         def monitor_update():
             if not request.headers.get('X-Github-Event'):
                 abort(400)
@@ -129,7 +126,7 @@ class AutobuilderWebApp:
 
             if request.headers['X-Github-Event'] == "push":
                 print("[+] update-endpoint: push event")
-                response = components.monitor.update(payload)
+                response = self.root.monitor.update(payload)
 
                 if response['status'] == 'error':
                     return self.monitor_bad_request(response)
@@ -139,7 +136,7 @@ class AutobuilderWebApp:
             print("[-] unknown event: %s" % request.headers['X-Github-Event'])
             abort(400)
 
-        @self.app.route(components.config['repository-push-endpoint'], methods=['GET', 'POST'])
+        @self.app.route(self.root.config['repository-push-endpoint'], methods=['GET', 'POST'])
         def monitor_push():
             if not request.headers.get('X-Github-Event'):
                 abort(400)
@@ -152,7 +149,7 @@ class AutobuilderWebApp:
 
             if request.headers['X-Github-Event'] == "push":
                 print("[+] push-endpoint: push event")
-                response = components.monitor.push(payload)
+                response = self.root.monitor.push(payload)
 
                 if response['status'] == 'error':
                     return self.monitor_bad_request(response)

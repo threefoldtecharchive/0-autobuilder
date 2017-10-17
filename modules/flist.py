@@ -1,9 +1,7 @@
 import os
 import tempfile
 import subprocess
-import time
 import yaml
-import requests
 from modules.flistworker import AutobuilderFlistThread
 
 class AutobuilderFlistMonitor:

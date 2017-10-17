@@ -1,4 +1,3 @@
-import os
 from config import config
 from modules.flist import AutobuilderFlistMonitor
 from modules.github import AutobuilderGitHub

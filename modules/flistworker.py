@@ -1,9 +1,5 @@
 import os
 import tempfile
-import subprocess
-import time
-import yaml
-import requests
 import threading
 import docker
 import traceback
