@@ -1,6 +1,12 @@
 import requests
 
 class AutobuilderGitHub:
+    """
+    This class provide basic integration of github without extra dependencies
+    This basicly only supports get/post api requests and build statuses updates
+
+    Please provide a valid github api token on the config file
+    """
     def __init__(self, components):
         self.root = components
 

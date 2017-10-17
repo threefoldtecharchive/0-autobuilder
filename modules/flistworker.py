@@ -5,6 +5,16 @@ import docker
 import traceback
 
 class AutobuilderFlistThread(threading.Thread):
+    """
+    This class handle the build-thread flist
+
+    Workflow:
+     - start a container with git support
+     - clone the repository
+     - for each buildscripts configured:
+       - execute this buildscript
+       - upload the artifact on the hub
+    """
     def __init__(self, components, task):
         threading.Thread.__init__(self)
 

@@ -5,6 +5,25 @@ import yaml
 from modules.flistworker import AutobuilderFlistThread
 
 class AutobuilderFlistMonitor:
+    """
+    This class takes care of the flist-webhooks and monitor any changes
+
+    Workflow:
+     # Initialization
+     - clone configuration repository
+     - parse contents (directories are repositories, files are branch settings)
+
+     # Set webhook endpoints itself
+
+     # When a push is receive on the configuration repository
+     - re-clone this repository and re-parse the contents
+     - update local configuration
+
+     # When a push is receive to a flist-hook
+     - start a container with git support
+     - check if the push event is related to a monitored repository and branch
+     - if we support this push, starting a flist-build-thread
+    """
     def __init__(self, components):
         self.root = components
         self.configtarget = self.root.config['configuration-repository']

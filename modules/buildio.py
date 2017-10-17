@@ -6,6 +6,11 @@ import time
 import collections
 
 class BuildIO:
+    """
+    This class will handle all Input/Output request to a build (a task)
+    This one is the top-level abstraction of status monitoring and persistance
+    Please use a Task (see below) to handle them more efficiently
+    """
     def __init__(self, components):
         self.root = components
 

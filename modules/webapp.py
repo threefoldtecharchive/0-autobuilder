@@ -1,6 +1,10 @@
 from flask import Flask, request, render_template, abort, jsonify, make_response
 
 class AutobuilderWebApp:
+    """
+    Flask web-application based for receiving hooks and providing a web-interface
+    for monitoring current build status
+    """
     def __init__(self, components):
         self.root = components
 

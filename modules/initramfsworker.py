@@ -6,6 +6,16 @@ import traceback
 import threading
 
 class AutobuilderInitramfsThread(threading.Thread):
+    """
+    This class handle the build-thread kernel
+
+    Workflow:
+     - start a container with git support
+     - clone the repository
+     - execute the argument buildscript
+     - extract kernel from container
+     - move kernel to kernel directory
+    """
     def __init__(self, task, baseimage, script, release, components):
         threading.Thread.__init__(self)
 
@@ -15,12 +25,12 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.repository = task.get('repository')
         self.script = script
         self.branch = task.get('branch')
-        self.reponame = os.path.basename(repository)
+        self.reponame = os.path.basename(task.get('repository'))
         self.commit = task.get('commit')[0:10]
         self.release = release
         self.root = components
 
-    def kernel(tmpsource):
+    def kernel(self, tmpsource):
         """
         Extract the kernel from a container
          - if release is True, kernel is compiled from initramfs
@@ -69,10 +79,6 @@ class AutobuilderInitramfsThread(threading.Thread):
         tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-", dir=self.root.config['temp-directory'])
         print("[+] temporary directory: %s" % tmpdir.name)
 
-        #
-        # This is a main project, we build it
-        # then make a base image from it
-        #
         print("[+] starting container")
         volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
         target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes)
@@ -90,8 +96,8 @@ class AutobuilderInitramfsThread(threading.Thread):
             self.task.notice('Cloning repository')
             self.task.execute(target, "git clone -b '%s' https://github.com/%s" % (self.branch, self.repository))
 
-        self.root.buildio.notice('Executing script')
-        self.root.buildio.set_status('building')
+        self.task.notice('Executing script')
+        self.task.set_status('building')
 
         try:
             # FIXME: should not happen

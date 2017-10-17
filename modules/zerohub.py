@@ -1,6 +1,14 @@
 import requests
 
 class ZeroHubClient:
+    """
+    This class interact with the Zero-OS Hub (hub.gig.tech) to upload and manage
+    files, we use itsyou.online authentification tokens
+
+    To make this working on long-time, please provide a refreshable jwt token from
+    itsyou.online, moreover the username your provide needs to be your username
+    or a username part of user:memberof:xxxx scope, otherwise upload will fails
+    """
     def __init__(self, components):
         self.root = components
 
@@ -16,6 +24,9 @@ class ZeroHubClient:
         }
 
     def upload(self, filename):
+        """
+        Upload a local file to the hub
+        """
         files = {'file': open(filename,'rb')}
         r = requests.post('%s/api/flist/me/upload' % self.baseurl, files=files, cookies=self.cookies)
         response = r.json()
@@ -25,21 +36,6 @@ class ZeroHubClient:
             return False
 
         return True
-
-    def merge(self, sources, target):
-        """
-        arguments = []
-
-        for source in sources:
-            arguments.append(('flists[]', source))
-
-        arguments.append(('name', target))
-        r = requests.post('%s/merge' % self.baseurl, data=arguments, cookies=self.cookies)
-        print(r.text)
-
-        return True
-        """
-        pass
 
     def refresh(self):
         """
