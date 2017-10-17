@@ -4,7 +4,7 @@ import subprocess
 import time
 import yaml
 import requests
-from flistworker import AutobuilderFlistThread
+from modules.flistworker import AutobuilderFlistThread
 
 class AutobuilderFlistMonitor:
     def __init__(self, components):

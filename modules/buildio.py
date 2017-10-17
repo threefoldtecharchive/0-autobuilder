@@ -11,6 +11,14 @@ class BuildIO:
 
         self.status = {}
 
+        # ensure logs directories
+        if not os.path.exists(self.root.config['logs-directory']):
+            os.mkdir(self.root.config['logs-directory'])
+
+        sublogfiles = os.path.join(self.root.config['logs-directory'], "commits")
+        if not os.path.exists(sublogfiles):
+            os.mkdir(sublogfiles)
+
     """
     Build history
     """
