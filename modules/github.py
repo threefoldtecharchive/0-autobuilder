@@ -49,3 +49,17 @@ class AutobuilderGitHub:
         print("[+] github: set status to: %s" % endpoint)
 
         print(self.request(endpoint, data))
+
+    def webhook(self, target):
+        """
+        Generate a json ready to use to configure github-webhook using
+        target as endpoint url
+        """
+        config = {
+            "name": 'web',
+            "active": True,
+            "events": ["push"],
+            "config": {"url": target, "content_type": "json"}
+        }
+
+        return config

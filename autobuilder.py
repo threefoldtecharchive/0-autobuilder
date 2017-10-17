@@ -36,6 +36,7 @@ if __name__ == '__main__':
     app.monitor.initialize()
     app.monitor.dump()
     app.monitor.webhooks()
+    app.initram.webhooks()
 
     print("[+] configuring: webapp")
     app.webapp.routes()

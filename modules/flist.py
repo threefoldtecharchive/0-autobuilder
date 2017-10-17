@@ -143,22 +143,8 @@ class AutobuilderFlistMonitor:
                 return True
 
         # no webhook matching our url found, adding it
-        options = self.webhook_config(target)
-        print(self.root.github('/repos/%s/hooks' % repository, options))
-
-    def webhook_config(self, target):
-        """
-        Generate a json ready to use to configure github-webhook using
-        target as endpoint url
-        """
-        config = {
-            "name": 'web',
-            "active": True,
-            "events": ["push"],
-            "config": { "url": target, "content_type": "json" }
-        }
-
-        return config
+        options = self.root.github.webhook(target)
+        print(self.root.github.request('/repos/%s/hooks' % repository, options))
 
     def push(self, payload):
         """

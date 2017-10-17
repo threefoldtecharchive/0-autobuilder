@@ -11,6 +11,13 @@ class AutobuilderInitramfs:
     def __init__(self, components):
         self.root = components
 
+        self.watching = [
+            "zero-os/0-core",
+            "zero-os/0-fs",
+            "g8os/initramfs-gig",
+            "zero-os/0-initramfs",
+        ]
+
         # ensure kernel directory
         if not os.path.exists(self.root.config['kernel-directory']):
             os.mkdir(self.root.config['kernel-directory'])
@@ -118,3 +125,34 @@ class AutobuilderInitramfs:
 
         task.error("Unknown kernel repository, we don't follow this one.")
         abort(404)
+
+    def webhooks(self):
+        """
+        Auto-configure watching repositories for webhook
+        """
+        for repository in self.watching:
+            print("[+] repository: %s, setting up webhook" % repository)
+            target = self.root.config['public-host'] + '/hook/kernel'
+            self.webhook_repository(repository, target)
+
+        return True
+
+    def webhook_repository(self, repository, target):
+        """
+        Check and update webhook of a repository if not set
+        """
+        print("[+] webhook: managing: %s" % repository)
+
+        existing = self.root.github.request('/repos/%s/hooks' % repository)
+        for hook in existing:
+            if not hook['config'].get('url'):
+                continue
+
+            # checking if webhook is already set
+            if hook['config']['url'] == target:
+                print("[+] webhook: %s: already up-to-date" % repository)
+                return True
+
+        # no webhook matching our url found, adding it
+        options = self.root.github.webhook(target)
+        print(self.root.github.request('/repos/%s/hooks' % repository, options))
