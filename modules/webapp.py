@@ -4,7 +4,13 @@ class AutobuilderWebApp:
     def __init__(self, components):
         self.root = components
 
-        self.app = Flask(__name__, static_url_path='/static')
+        self.app = Flask(
+            __name__,
+            static_url_path='/static',
+            static_folder='../static',
+            template_folder='../templates'
+        )
+
         self.app.url_map.strict_slashes = False
 
     def routes(self):
@@ -73,10 +79,8 @@ class AutobuilderWebApp:
         #
         # Git Hook
         #
-        @self.app.route('/build/<project>/hook', methods=['GET', 'POST'])
-        def build_hook(project):
-            print("[+] project: %s" % project)
-
+        @self.app.route('/hook/kernel', methods=['GET', 'POST'])
+        def build_hook():
             if not request.headers.get('X-Github-Event'):
                 abort(400)
 
@@ -85,11 +89,11 @@ class AutobuilderWebApp:
 
             if request.headers['X-Github-Event'] == "ping":
                 print("[+] ping event")
-                return event_ping(payload)
+                return self.root.initram.event_ping(payload)
 
             if request.headers['X-Github-Event'] == "push":
                 print("[+] push event")
-                return event_push(payload)
+                return self.root.initram.event_push(payload)
 
             print("[-] unknown event: %s" % request.headers['X-Github-Event'])
             abort(400)
@@ -129,7 +133,7 @@ class AutobuilderWebApp:
                 response = self.root.monitor.update(payload)
 
                 if response['status'] == 'error':
-                    return self.monitor_bad_request(response)
+                    return monitor_bad_request(response)
 
                 return jsonify(response)
 
@@ -152,7 +156,7 @@ class AutobuilderWebApp:
                 response = self.root.monitor.push(payload)
 
                 if response['status'] == 'error':
-                    return self.monitor_bad_request(response)
+                    return monitor_bad_request(response)
 
                 return jsonify(response)
 

@@ -45,16 +45,16 @@ class AutobuilderFlistMonitor:
 
     def _yaml_validate(self, contents):
         if not contents.get('buildscripts'):
-            print("[-] buildscripts not defined, skipping")
+            print("[-] WARNING: buildscripts not defined, skipping")
             return False
 
         for buildscript in contents['buildscripts']:
             if not contents.get(buildscript):
-                print("[-] buildscript '%s' not defined" % buildscript)
+                print("[-] WARNING: buildscript '%s' not defined" % buildscript)
                 return False
 
             if not contents[buildscript].get('artifact'):
-                print("[-] buildscripts '%s' have no artifact")
+                print("[-] WARNING: buildscripts '%s' have no artifact")
                 return False
 
         return True
