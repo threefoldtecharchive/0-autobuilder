@@ -61,6 +61,11 @@ Moreover, webservice will update github statuses according to the build process.
 Status like **success**, **error** and **pending*** will be forwarded to GitHub and full-logs url
 will be dispatched as well. You can use this service to authorize Pull Requests only on success build.
 
+### Configuration parser
+When then autobuilder starts or the configuration repository is modified, during parsing of the
+configuration files, the parsing is logged like any build and status is reported to github as well.
+You can easily knows some configuration files was malformed, etc.
+
 ## Documentation
 
 For more documentation see the [`/docs`](./docs) directory, where you'll find a [table of contents](/docs/SUMMARY.md).
