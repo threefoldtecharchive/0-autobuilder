@@ -26,11 +26,20 @@ class AutobuilderFlistThread(threading.Thread):
         self.repository = task.get('repository')
         self.recipe = {}
 
-    def _flist_name(self, archives):
-        targetname = "%s-%s-%s.tar.gz" % (self.repository, self.branch, self.task.get('commit')[0:10])
-        targetname = targetname.replace('/', '-')
+    def _flist_generic(self):
+        temp = "%s-%s.flist" % (self.repository, self.branch)
+        return temp.replace('/', '-')
 
-        return os.path.join(archives, targetname)
+    def _flist_endname(self):
+        temp = "%s-%s-%s.flist" % (self.repository, self.branch, self.task.get('commit')[0:10])
+        return temp.replace('/', '-')
+
+    def _flist_targz(self):
+        temp = "%s-%s-%s.tar.gz" % (self.repository, self.branch, self.task.get('commit')[0:10])
+        return temp.replace('/', '-')
+
+    def _flist_name(self, archives):
+        return os.path.join(archives, self._flist_targz())
 
     def build(self, baseimage, buildscript, archives, artifact):
         # connecting docker
@@ -79,8 +88,14 @@ class AutobuilderFlistThread(threading.Thread):
             os.rename(artifactfile, targetpath)
 
             # upload the file
+            print("[+] refreshing jwt")
             self.root.zerohub.refresh()
+
+            print("[+] uploading file")
             self.root.zerohub.upload(targetpath)
+
+            print("[+] updating symlink")
+            self.root.zerohub.symlink(self._flist_generic(), self._flist_endname())
 
             # build well done
             self.task.success()

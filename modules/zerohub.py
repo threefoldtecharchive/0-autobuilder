@@ -46,3 +46,17 @@ class ZeroHubClient:
         response = requests.get('%s/v1/oauth/jwt/refresh' % self.baseiyo, headers=headers)
         self.token = response.text
         self.cookies['caddyoauth'] = self.token
+
+    def symlink(self, linkname, target):
+        """
+        Create a symlink on the hub
+        """
+        endpoint = '%s/api/flist/me/%s/link/%s' % (self.baseurl, target, linkname)
+        r = requests.get(endpoint, cookies=self.cookies)
+        response = r.json()
+
+        if response['status'] != 'success':
+            print(response)
+            return False
+
+        return True
