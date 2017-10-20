@@ -56,6 +56,7 @@ class AutobuilderWebApp:
             for key, item in self.root.buildio.status.items():
                 output[key] = {
                     'status': item['status'],
+                    'name': item['name'],
                     'monitor': empty.join(item['console']),
                     'docker': item['docker'][0:10],
                     'started': item['started'],

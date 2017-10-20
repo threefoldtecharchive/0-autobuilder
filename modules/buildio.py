@@ -97,6 +97,7 @@ class BuildIO:
             'commits': [],
             'commit': None,
             'artifact': None,
+            'name': '',
             'branch': None,
             'logfile': os.path.join(self.root.config['logs-directory'], "commits", id),
         }
