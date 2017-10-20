@@ -36,6 +36,9 @@ class AutobuilderFlistMonitor:
             "repository": self.root.config['public-host'] + self.root.config['repository-push-endpoint'],
         }
 
+        self.default_baseimage = "ubuntu:16.04"
+        self.default_archives = "/target"
+
         print("[+] update endpoint: %s" % self.watch['monitor'])
         print("[+] push endpoint: %s" % self.watch['repository'])
 
@@ -136,12 +139,22 @@ class AutobuilderFlistMonitor:
         Dumps the content of the parsed and loaded repositories
         """
         print("[+] watching %d repositories:" % len(self.repositories))
+        print("[+]")
+
         for repository, contents in self.repositories.items():
             print("[+]   %s (%d branches):" % (repository, len(contents)))
 
             for branch in contents:
                 print("[+]     - %s" % branch)
-                print("[+]       -> %s" % contents[branch])
+
+                for buildscript in contents[branch]['buildscripts']:
+                    buildinfo = contents[branch][buildscript]
+                    print("[+]     +--> %s:" % buildscript)
+                    print("[+]          artifact : %s" % buildinfo['artifact'])
+                    print("[+]          baseimage: %s" % buildinfo.get('baseimage') or self.default_baseimage)
+                    print("[+]          archives : %s" % buildinfo.get('archives') or self.default_archives)
+
+            print("[+]")
 
     def webhooks(self, previously={}):
         """

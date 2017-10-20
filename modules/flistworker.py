@@ -26,6 +26,9 @@ class AutobuilderFlistThread(threading.Thread):
         self.repository = task.get('repository')
         self.recipe = {}
 
+        self.default_baseimage = self.root.monitor.default_baseimage
+        self.default_archives = self.root.monitor.default_archives
+
     def _flist_generic(self):
         temp = "%s-%s.flist" % (self.repository, self.branch)
         return temp.replace('/', '-')
@@ -113,8 +116,8 @@ class AutobuilderFlistThread(threading.Thread):
     def run(self):
         for buildscript in self.recipe['buildscripts']:
             artifact = self.recipe[buildscript]['artifact']
-            baseimage = self.recipe[buildscript].get('baseimage') or "ubuntu:16.04"
-            archives = self.recipe[buildscript].get('archives') or "/target"
+            baseimage = self.recipe[buildscript].get('baseimage') or self.default_baseimage
+            archives = self.recipe[buildscript].get('archives') or self.default_archives
 
             print("[+] building script: %s" % buildscript)
             print("[+]  - artifact expected: %s" % artifact)
