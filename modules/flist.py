@@ -231,7 +231,7 @@ class AutobuilderFlistMonitor:
             return {'status': 'error', 'message': 'repository not configured as configuration-repository'}
 
         print("[+] webhook: reloading configuration")
-        previously = self.repositories
+        previously = self.repositories.copy()
 
         self.initialize()
         self.dump()
