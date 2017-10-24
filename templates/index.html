@@ -135,6 +135,9 @@
             if(data[idx]['commits'].length > 0) {
                 rootcommit = data[idx]['commits'][0]['id'].substr(0, 10);
 
+            } else if(data[idx]['docker'] == 'system') {
+                rootcommit = 'internal';
+
             } else rootcommit = 'docker-' + data[idx]['docker'];
 
             var root = $('<div>', {'class': 'panel panel-' + statuscolors[data[idx]['status']]});
@@ -143,7 +146,7 @@
             //
             // heading
             //
-            var title = idx;
+            var title = data[idx]['name'];
             title = ' <code>[' + rootcommit + ']</code> ' + title;
 
             // collapsed heading for history
