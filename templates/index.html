@@ -30,7 +30,7 @@
                     <a href="./">Build Status</a>
                 </li>
                 <li>
-                    <a href="#" onclick="update();">Refresh</a>
+                    <a href="#" onclick="force_update();">Refresh</a>
                 </li>
             </ul>
         </div>
@@ -59,6 +59,7 @@
     var window_focus = true;
     var was_building = false;
     var artifactshost = 'https://bootstrap.gig.tech/kernel/';
+    var timeouts = [];
 
     var statuscolors = {
         'creating': 'info',
@@ -80,6 +81,16 @@
         'initializing': 'initializing the image',
     };
 
+    function set_timeout(callback, time) {
+        timeouts.push(setTimeout(callback, time));
+    }
+
+    function clear_timeouts() {
+        for(var i = 0; i < timeouts.length; i++) {
+            clearTimeout(timeouts[i]);
+        }
+    }
+
     function refresh_status(data) {
         refresh(data, 'status');
     }
@@ -88,8 +99,13 @@
         refresh(data, 'history');
     }
 
+    function force_update() {
+        clear_timeouts();
+        update();
+    }
+
     function refresh(data, type) {
-        console.log(data);
+        // console.log(data);
 
         $("#build-" + type).empty();
 
@@ -106,11 +122,12 @@
                 if(was_building)
                     update_history();
 
-                return setTimeout(update_status, 2 * 60 * 1000);
+                set_timeout(update_status, 2 * 60 * 1000);
+                return;
             }
 
             // update 2 seconds
-            setTimeout(update_status, 2 * 1000);
+            set_timeout(update_status, 2 * 1000);
             was_building = true;
         }
 
@@ -122,10 +139,11 @@
                 text.append('No history right now.');
 
                 $("#build-" + type).append(text);
-                return setTimeout(update_history, 2 * 60 * 1000);
+                set_timeout(update_history, 2 * 60 * 1000);
+                return;
             }
 
-            setTimeout(update_status, 30 * 1000);
+            set_timeout(update_status, 30 * 1000);
         }
 
         var zindex = 0;
