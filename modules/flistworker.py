@@ -87,7 +87,7 @@ class AutobuilderFlistThread(threading.Thread):
             self.task.notice('Uploading artifact to the hub')
 
             # rename the artifact to versioned-name
-            targetpath = self._flist_name(archives)
+            targetpath = os.path.join(tmpdir.name, self._flist_targz())
             os.rename(artifactfile, targetpath)
 
             # upload the file

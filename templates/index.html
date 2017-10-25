@@ -61,6 +61,7 @@
     var artifactshost = 'https://bootstrap.gig.tech/kernel/';
 
     var statuscolors = {
+        'creating': 'info',
         'error': 'danger',
         'success': 'success',
         'building': 'info',
@@ -70,12 +71,13 @@
     };
 
     var statusmsg = {
-        'error': 'build failed.',
-        'success': 'build succeeded.',
-        'building': 'building...',
-        'committing': 'committing image...',
-        'preparing': 'preparing the build.',
-        'initializing': 'initializing the image.',
+        'creating': 'preparing container',
+        'error': 'build failed',
+        'success': 'build succeeded',
+        'building': 'building',
+        'committing': 'committing image',
+        'preparing': 'preparing the build',
+        'initializing': 'initializing the image',
     };
 
     function refresh_status(data) {
