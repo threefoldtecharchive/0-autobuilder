@@ -22,7 +22,7 @@ class AutobuilderInitramfs:
         if not os.path.exists(self.root.config['kernel-directory']):
             os.mkdir(self.root.config['kernel-directory'])
 
-    def imagefrom(client, repository, branch):
+    def imagefrom(self, client, repository, branch):
         """
         Search for a valid base image, based on branch name
         """
