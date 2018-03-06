@@ -15,7 +15,7 @@ class ZeroHubClient:
         self.token = self.root.config['zerohub-token']
         self.user = self.root.config['zerohub-username']
 
-        self.baseurl = 'https://staging.hub.gig.tech'
+        self.baseurl = 'https://hub.gig.tech'
         self.baseiyo = 'https://itsyou.online'
 
         self.cookies = {
