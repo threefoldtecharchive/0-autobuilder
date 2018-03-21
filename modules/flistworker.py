@@ -56,7 +56,7 @@ class AutobuilderFlistThread(threading.Thread):
         tmpgit = tempfile.TemporaryDirectory(prefix="git-source-", dir=self.root.config['temp-directory'])
         print("[+] temporary git source directory: %s" % tmpdir.name)
 
-        subprocess.call(["git", "clone", "-b", self.branch, "https://github.com/%s" % self.repository, tmpgit.name)
+        subprocess.call(["git", "clone", "-b", self.branch, "https://github.com/%s" % self.repository, tmpgit.name])
 
         print("[+] starting container")
         volumes = {
