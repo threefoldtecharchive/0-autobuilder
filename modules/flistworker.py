@@ -3,6 +3,7 @@ import tempfile
 import threading
 import docker
 import traceback
+import subprocess
 
 class AutobuilderFlistThread(threading.Thread):
     """
@@ -52,8 +53,17 @@ class AutobuilderFlistThread(threading.Thread):
         tmpdir = tempfile.TemporaryDirectory(prefix="flist-build-", dir=self.root.config['temp-directory'])
         print("[+] temporary directory: %s" % tmpdir.name)
 
+        tmpgit = tempfile.TemporaryDirectory(prefix="git-source-", dir=self.root.config['temp-directory'])
+        print("[+] temporary git source directory: %s" % tmpdir.name)
+
+        subprocess.call(["git", "clone", "-b", self.branch, "https://github.com/%s" % self.repository, tmpgit.name)
+
         print("[+] starting container")
-        volumes = {tmpdir.name: {'bind': archives, 'mode': 'rw'}}
+        volumes = {
+            tmpdir.name: {'bind': archives, 'mode': 'rw'},
+            tmpgit.name: {'bind': '/%s' % os.path.basename(self.repository), 'mode': 'rw'},
+        }
+
         target = client.containers.run(baseimage, tty=True, detach=True, volumes=volumes)
 
         self.task.set_status('initializing')
@@ -65,17 +75,20 @@ class AutobuilderFlistThread(threading.Thread):
         self.task.pending()
 
         self.task.notice('Preparing system')
-        self.task.execute(target, "apt-get update")
-        self.task.execute(target, "apt-get install -y git")
+        # self.task.execute(target, "apt-get update")
+        # self.task.execute(target, "apt-get install -y git")
 
         self.task.notice('Cloning repository')
-        self.task.execute(target, "git clone -b '%s' https://github.com/%s" % (self.branch, self.repository))
+        # self.task.execute(target, "git clone -b '%s' https://github.com/%s" % (self.branch, self.repository))
 
         self.task.notice('Executing script')
         self.task.set_status('building')
 
         try:
-            command = "bash %s/%s" % (os.path.basename(self.repository), buildscript)
+            command = "chmod +x /%s/%s" % (os.path.basename(self.repository), buildscript)
+            self.task.execute(target, command)
+
+            command = "/%s/%s" % (os.path.basename(self.repository), buildscript)
             self.task.execute(target, command)
 
             artifactfile = os.path.join(tmpdir.name, artifact)
@@ -110,6 +123,7 @@ class AutobuilderFlistThread(threading.Thread):
         # end of build process
         target.remove(force=True)
         tmpdir.cleanup()
+        tmpgit.cleanup()
 
         return "OK"
 
