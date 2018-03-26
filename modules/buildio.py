@@ -125,8 +125,10 @@ class BuildIO:
         entry = self.status[id]
         self.root.github.statuses(entry['commit'], id, status, entry['repository'])
 
+    def destroy(self, id):
         # removing object from running state
         del self.status[id]
+
 
     """
     Build output
@@ -241,6 +243,9 @@ class BuildIOTask:
         print("[-] %s [error]: %s" % (self.taskid, message))
         self.root.buildio.finish(self.taskid, 'error', message)
         return "FAILED"
+
+    def destroy(self):
+        self.root.buildio.destroy(self.taskid)
 
     def pending(self):
         self.root.github.statuses(self.get('commit'), self.taskid, "pending", self.get('repository'))

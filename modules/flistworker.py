@@ -143,3 +143,5 @@ class AutobuilderFlistThread(threading.Thread):
             print("[+]  - archive directory: %s" % archives)
 
             self.build(baseimage, buildscript, archives, artifact)
+
+        self.task.destroy()
