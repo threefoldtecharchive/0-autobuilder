@@ -32,17 +32,17 @@ class AutobuilderFlistThread(threading.Thread):
         self.default_archives = self.root.monitor.default_archives
 
     def _flist_generic(self):
-        repository = self.repository if not self.tag or '%s-%s' % (self.repository, self.tag)
+        repository = self.repository if not self.tag else '%s-%s' % (self.repository, self.tag)
         temp = "%s-%s.flist" % (repository, self.branch)
         return temp.replace('/', '-')
 
     def _flist_endname(self):
-        repository = self.repository if not self.tag or '%s-%s' % (self.repository, self.tag)
+        repository = self.repository if not self.tag else '%s-%s' % (self.repository, self.tag)
         temp = "%s-%s-%s.flist" % (repository, self.branch, self.task.get('commit')[0:10])
         return temp.replace('/', '-')
 
     def _flist_targz(self):
-        repository = self.repository if not self.tag or '%s-%s' % (self.repository, self.tag)
+        repository = self.repository if not self.tag else '%s-%s' % (self.repository, self.tag)
         temp = "%s-%s-%s.tar.gz" % (repository, self.branch, self.task.get('commit')[0:10])
         return temp.replace('/', '-')
 
