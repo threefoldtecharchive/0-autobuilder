@@ -25,31 +25,30 @@ class AutobuilderFlistThread(threading.Thread):
         self.shortname = task.get('name')
         self.branch = task.get('branch')
         self.repository = task.get('repository')
-        self.tag = task.get('tag')
         self.recipe = {}
 
         self.default_baseimage = self.root.monitor.default_baseimage
         self.default_archives = self.root.monitor.default_archives
 
-    def _flist_generic(self):
-        repository = self.repository if not self.tag else '%s-%s' % (self.repository, self.tag)
+    def _flist_generic(self, tag=None):
+        repository = self.repository if not tag else '%s-%s' % (self.repository, tag)
         temp = "%s-%s.flist" % (repository, self.branch)
         return temp.replace('/', '-')
 
-    def _flist_endname(self):
-        repository = self.repository if not self.tag else '%s-%s' % (self.repository, self.tag)
+    def _flist_endname(self, tag=None):
+        repository = self.repository if not tag else '%s-%s' % (self.repository, tag)
         temp = "%s-%s-%s.flist" % (repository, self.branch, self.task.get('commit')[0:10])
         return temp.replace('/', '-')
 
-    def _flist_targz(self):
-        repository = self.repository if not self.tag else '%s-%s' % (self.repository, self.tag)
+    def _flist_targz(self, tag=None):
+        repository = self.repository if not tag else '%s-%s' % (self.repository, tag)
         temp = "%s-%s-%s.tar.gz" % (repository, self.branch, self.task.get('commit')[0:10])
         return temp.replace('/', '-')
 
     def _flist_name(self, archives):
         return os.path.join(archives, self._flist_targz())
 
-    def build(self, baseimage, buildscript, archives, artifact):
+    def build(self, baseimage, buildscript, archives, artifact, tag):
         # connecting docker
         client = docker.from_env()
 
@@ -104,7 +103,7 @@ class AutobuilderFlistThread(threading.Thread):
             self.task.notice('Uploading artifact to the hub')
 
             # rename the artifact to versioned-name
-            targetpath = os.path.join(tmpdir.name, self._flist_targz())
+            targetpath = os.path.join(tmpdir.name, self._flist_targz(tag))
             os.rename(artifactfile, targetpath)
 
             # upload the file
@@ -115,7 +114,7 @@ class AutobuilderFlistThread(threading.Thread):
             self.root.zerohub.upload(targetpath)
 
             print("[+] updating symlink")
-            self.root.zerohub.symlink(self._flist_generic(), self._flist_endname())
+            self.root.zerohub.symlink(self._flist_generic(tag), self._flist_endname(tag))
 
             # build well done
             self.task.success()
@@ -136,12 +135,14 @@ class AutobuilderFlistThread(threading.Thread):
             artifact = self.recipe[buildscript]['artifact']
             baseimage = self.recipe[buildscript].get('baseimage') or self.default_baseimage
             archives = self.recipe[buildscript].get('archives') or self.default_archives
+            tag = self.recipe[buildscript].get('tag')
 
             print("[+] building script: %s" % buildscript)
             print("[+]  - artifact expected: %s" % artifact)
             print("[+]  - base image: %s" % baseimage)
             print("[+]  - archive directory: %s" % archives)
+            print("[+]  - extra tag: %s" % tag)
 
-            self.build(baseimage, buildscript, archives, artifact)
+            self.build(baseimage, buildscript, archives, artifact, tag)
 
         self.task.destroy()
