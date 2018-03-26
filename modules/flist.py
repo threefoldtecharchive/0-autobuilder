@@ -153,6 +153,7 @@ class AutobuilderFlistMonitor:
                     print("[+]          artifact : %s" % buildinfo['artifact'])
                     print("[+]          baseimage: %s" % buildinfo.get('baseimage') or self.default_baseimage)
                     print("[+]          archives : %s" % buildinfo.get('archives') or self.default_archives)
+                    print("[+]          extra tag: %s" % buildinfo.get('tag') or '(none)')
 
             print("[+]")
 

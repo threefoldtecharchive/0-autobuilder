@@ -25,21 +25,25 @@ class AutobuilderFlistThread(threading.Thread):
         self.shortname = task.get('name')
         self.branch = task.get('branch')
         self.repository = task.get('repository')
+        self.tag = task.get('tag')
         self.recipe = {}
 
         self.default_baseimage = self.root.monitor.default_baseimage
         self.default_archives = self.root.monitor.default_archives
 
     def _flist_generic(self):
-        temp = "%s-%s.flist" % (self.repository, self.branch)
+        repository = self.repository if not self.tag or '%s-%s' % (self.repository, self.tag)
+        temp = "%s-%s.flist" % (repository, self.branch)
         return temp.replace('/', '-')
 
     def _flist_endname(self):
-        temp = "%s-%s-%s.flist" % (self.repository, self.branch, self.task.get('commit')[0:10])
+        repository = self.repository if not self.tag or '%s-%s' % (self.repository, self.tag)
+        temp = "%s-%s-%s.flist" % (repository, self.branch, self.task.get('commit')[0:10])
         return temp.replace('/', '-')
 
     def _flist_targz(self):
-        temp = "%s-%s-%s.tar.gz" % (self.repository, self.branch, self.task.get('commit')[0:10])
+        repository = self.repository if not self.tag or '%s-%s' % (self.repository, self.tag)
+        temp = "%s-%s-%s.tar.gz" % (repository, self.branch, self.task.get('commit')[0:10])
         return temp.replace('/', '-')
 
     def _flist_name(self, archives):
