@@ -99,7 +99,9 @@ class AutobuilderInitramfs:
         if task.get('repository') == "zero-os/0-core":
             baseimage = self.imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
             if not baseimage:
-                return task.error('No base image found for branch: %s' % task.get('branch'))
+                task.error('No base image found for branch: %s' % task.get('branch'))
+                task.destroy()
+                return
 
             print("[+] base image found: %s" % baseimage.tags)
             return self.build(task, baseimage.id, "gig-build-cores.sh", False)
@@ -107,7 +109,9 @@ class AutobuilderInitramfs:
         if task.get('repository') == "zero-os/0-fs":
             baseimage = self.imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
             if not baseimage:
-                return task.error('No base image found for branch: %s' % task.get('branch'))
+                task.error('No base image found for branch: %s' % task.get('branch'))
+                task.destroy()
+                return
 
             print("[+] base image found: %s" % baseimage.tags)
             return self.build(task, baseimage.id, "gig-build-g8ufs.sh", False)
@@ -115,7 +119,9 @@ class AutobuilderInitramfs:
         if task.get('repository') == "g8os/initramfs-gig":
             baseimage = self.imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
             if not baseimage:
-                return task.error('No base image found for branch: %s' % task.get('branch'))
+                task.error('No base image found for branch: %s' % task.get('branch'))
+                task.destroy()
+                return
 
             print("[+] base image found: %s" % baseimage.tags)
             return self.build(task, baseimage.id, "gig-build-extensions.sh", False)
@@ -124,6 +130,7 @@ class AutobuilderInitramfs:
             return self.build(task, "ubuntu:16.04", "gig-build.sh", True)
 
         task.error("Unknown kernel repository, we don't follow this one.")
+        task.destroy()
         abort(404)
 
     def webhooks(self):

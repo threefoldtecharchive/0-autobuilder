@@ -89,10 +89,13 @@ class AutobuilderFlistMonitor:
 
         if not self.compiled:
             task.notice("Configuration loaded, with some errors")
-            return task.error("Some configuration files could not be parsed correctly")
+            task.error("Some configuration files could not be parsed correctly")
+            task.destroy()
+            return False
 
         task.notice("Configuration loaded without any errors")
         task.success()
+        task.destroy()
 
     def _yaml_validate(self, contents, task):
         if not contents.get('buildscripts'):

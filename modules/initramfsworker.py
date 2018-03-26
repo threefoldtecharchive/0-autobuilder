@@ -121,10 +121,12 @@ class AutobuilderInitramfsThread(threading.Thread):
 
             # build well done
             self.task.success()
+            self.task.destroy()
 
         except Exception as e:
             traceback.print_exc()
             self.task.error(str(e))
+            self.task.destroy()
 
         # end of build process
         target.remove(force=True)
