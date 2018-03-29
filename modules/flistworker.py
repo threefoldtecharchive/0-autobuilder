@@ -135,7 +135,9 @@ class AutobuilderFlistThread(threading.Thread):
             artifact = self.recipe[buildscript]['artifact']
             baseimage = self.recipe[buildscript].get('baseimage') or self.default_baseimage
             archives = self.recipe[buildscript].get('archives') or self.default_archives
+
             tag = self.recipe[buildscript].get('tag')
+            self.task.set_tag(tag)
 
             print("[+] building script: %s" % buildscript)
             print("[+]  - artifact expected: %s" % artifact)

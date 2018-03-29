@@ -169,6 +169,10 @@
             var title = data[idx]['name'];
             title = ' <code>[' + rootcommit + ']</code> ' + title;
 
+            if(data[idx]['tag']) {
+                title = title + ' [' + data[idx]['tag'] + ']';
+            }
+
             // collapsed heading for history
             if(type == 'history') {
                 var id = "panel-" + zindex + "-" + rootcommit
@@ -180,7 +184,12 @@
                     'aria-controls': id,
                 };
 
-                var lnk = $('<a>', collapse).html(data[idx]['name']);
+                var name = data[idx]['name'];
+                if(data[idx]['tag']) {
+                    name = name + ' [' + data[idx]['tag'] + ']';
+                }
+
+                var lnk = $('<a>', collapse).html(name);
                 var code = $('<code>').html('[' + rootcommit + ']');
 
                 var title = $('<div>').append(code).append(' ').append(lnk).html();
@@ -253,6 +262,22 @@
 
                 content.append($('<hr>'));
                 content.append(logs);
+            }
+
+            // probably a build id, not a numeric id
+            if(idx.length > 10) {
+                data[idx]['id'] = idx;
+            }
+
+            if(data[idx]['id']) {
+                var options = {
+                    'href': '/report/' + data[idx]['id'],
+                    'target': '_blank',
+                    'style': 'float: right;',
+                };
+
+                var report = $('<a>', options).html('View full logs');
+                content.append(report);
             }
 
             root.append(content);

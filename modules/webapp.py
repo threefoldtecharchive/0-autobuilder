@@ -64,6 +64,7 @@ class AutobuilderWebApp:
                     'error': item['error'],
                     'commits': item['commits'],
                     'artifact': item['artifact'],
+                    'tag': item['tag'],
                 }
 
             return jsonify(output)

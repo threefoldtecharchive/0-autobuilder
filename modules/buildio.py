@@ -62,6 +62,7 @@ class BuildIO:
         empty = ""
 
         item = {
+            'id': id,
             'name': self.status[id]['name'],
             'status': self.status[id]['status'],
             'monitor': empty.join(self.status[id]['console']),
@@ -71,6 +72,7 @@ class BuildIO:
             'error': self.status[id]['error'],
             'commits': self.status[id]['commits'],
             'artifact': self.status[id]['artifact'],
+            'tag': self.status[id]['tag'],
         }
 
         history.insert(0, item)
@@ -100,6 +102,7 @@ class BuildIO:
             'name': '',
             'branch': None,
             'logfile': os.path.join(self.root.config['logs-directory'], "commits", id),
+            'tag': None,
         }
 
         self.status[id] = entry
@@ -199,6 +202,8 @@ class BuildIOTask:
     def set_branch(self, branch):
         self.root.buildio.status[self.taskid]['branch'] = branch
 
+    def set_tag(self, tag):
+        self.root.buildio.status[self.taskid]['tag'] = tag
 
     def set_from_push(self, payload):
         repository = payload['repository']['full_name']
