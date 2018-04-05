@@ -74,7 +74,7 @@ class AutobuilderFlistThread(threading.Thread):
         os.symlink(os.path.basenam(targetpath), self._flist_generic(tag))
         os.chdir(current)
 
-    def upload(self, targetpath, tag):
+    def upload(self, buildscript, targetpath, tag):
         uploader = self.recipe[buildscript].get('format')
         if not uploader:
             return self.upload_flist(targetpath, tag)
@@ -145,7 +145,7 @@ class AutobuilderFlistThread(threading.Thread):
             targetpath = os.path.join(tmpdir.name, self._flist_targz(tag))
             os.rename(artifactfile, targetpath)
 
-            self.upload(targetpath, tag)
+            self.upload(buildscript, targetpath, tag)
 
             # build well done
             self.task.success()
