@@ -67,7 +67,7 @@ class AutobuilderInitramfsThread(threading.Thread):
         os.symlink(kname, basename)
         os.chdir(now)
 
-        self.task.set_artifact(kname)
+        self.task.set_artifact("kernel/%s" % kname)
 
         return True
 
