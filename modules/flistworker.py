@@ -71,7 +71,7 @@ class AutobuilderFlistThread(threading.Thread):
         print("[+] updating symlink")
         current = os.getcwd()
         os.chdir(self.root.config['binary-directory'])
-        os.symlink(os.path.basenam(targetpath), self._flist_generic(tag))
+        os.symlink(os.path.basename(targetpath), self._flist_generic(tag))
         os.chdir(current)
 
     def upload(self, buildscript, targetpath, tag):
