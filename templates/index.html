@@ -246,14 +246,16 @@
                 var segments = artifact.split("/");
 
                 if(artifactshosts[segments[0]]) {
-                    var targetlink = artifactshosts[segments[0]] + artifact;
+                    var targetlink = artifactshosts[segments[0]] + segments[1];
+                    var artifactname = segments[1];
 
                 } else {
                     // fallback old behavior
                     var targetlink = artifactshost + artifact;
+                    var artifactname = artifact;
                 }
 
-                var lnk = $('<a>', {'href': targetlink}).html(data[idx]['artifact']);
+                var lnk = $('<a>', {'href': targetlink}).html(artifactname);
                 var text = $('<p>').html('<strong>Artifact</strong>: ');
                 text.append($('<code>').append(lnk));
 
