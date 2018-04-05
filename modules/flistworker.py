@@ -73,8 +73,13 @@ class AutobuilderFlistThread(threading.Thread):
         print("[+] updating symlink")
         current = os.getcwd()
         os.chdir(self.root.config['binary-directory'])
-        os.unlink(self._flist_generic(tag))
-        os.symlink(os.path.basename(targetpath), self._flist_generic(tag))
+
+        targetname = self._flist_generic(tag)
+
+        if os.path.exists(targetname):
+            os.unlink(targetname)
+
+        os.symlink(os.path.basename(targetpath), targetname)
         os.chdir(current)
 
         self.task.set_artifact("binary/%s" % os.path.basename(targetpath))
