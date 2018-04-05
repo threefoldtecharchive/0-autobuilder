@@ -6,6 +6,7 @@ config = {
     'token': "1234",
 
     'kernel-directory': '/tmp/kernels/',
+    'binary-directory': '/tmp/binaries/',
     'logs-directory': '/tmp/build-logs',
     'temp-directory': None,
 

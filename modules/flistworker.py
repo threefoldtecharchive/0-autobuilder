@@ -1,4 +1,5 @@
 import os
+import shutil
 import tempfile
 import threading
 import docker
@@ -48,6 +49,44 @@ class AutobuilderFlistThread(threading.Thread):
     def _flist_name(self, archives):
         return os.path.join(archives, self._flist_targz())
 
+    #
+    # uploader
+    #
+    def upload_flist(self, targetpath, tag):
+        # upload the flist
+        print("[+] refreshing jwt")
+        self.root.zerohub.refresh()
+
+        print("[+] uploading file")
+        self.root.zerohub.upload(targetpath)
+
+        print("[+] updating symlink")
+        self.root.zerohub.symlink(self._flist_generic(tag), self._flist_endname(tag))
+
+    def upload_binary(self, targetpath, tag):
+        # upload the binary file
+        print("[+] uploading file")
+        shutil.copy(targetpath, self.root.config['binary-directory'])
+
+        print("[+] updating symlink")
+        current = os.getcwd()
+        os.chdir(self.root.config['binary-directory'])
+        os.symlink(os.path.basenam(targetpath), self._flist_generic(tag))
+        os.chdir(current)
+
+    def upload(self, targetpath, tag):
+        uploader = self.recipe[buildscript].get('format')
+        if not uploader:
+            return self.upload_flist(targetpath, tag)
+
+        if uploader == 'binary':
+            return self.upload_binary(targetpath, tag)
+
+        raise RuntimeError('Invalid format uploader')
+
+    #
+    # builder
+    #
     def build(self, baseimage, buildscript, archives, artifact, tag):
         # connecting docker
         client = docker.from_env()
@@ -106,15 +145,7 @@ class AutobuilderFlistThread(threading.Thread):
             targetpath = os.path.join(tmpdir.name, self._flist_targz(tag))
             os.rename(artifactfile, targetpath)
 
-            # upload the file
-            print("[+] refreshing jwt")
-            self.root.zerohub.refresh()
-
-            print("[+] uploading file")
-            self.root.zerohub.upload(targetpath)
-
-            print("[+] updating symlink")
-            self.root.zerohub.symlink(self._flist_generic(tag), self._flist_endname(tag))
+            self.upload(targetpath, tag)
 
             # build well done
             self.task.success()
