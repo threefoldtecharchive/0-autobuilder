@@ -63,7 +63,7 @@ class AutobuilderFlistThread(threading.Thread):
         print("[+] updating symlink")
         self.root.zerohub.symlink(self._flist_generic(tag), self._flist_endname(tag))
 
-        self.task.set_artifact("flist/%s" % os.path.basename(targetpath))
+        self.task.set_artifact("flist/%s.md" % self._flist_endname(tag))
 
     def upload_binary(self, targetpath, tag):
         # upload the binary file

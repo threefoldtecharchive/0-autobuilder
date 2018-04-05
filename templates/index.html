@@ -58,7 +58,12 @@
     <script type="text/javascript">
     var window_focus = true;
     var was_building = false;
-    var artifactshost = 'https://bootstrap.gig.tech/kernel/';
+    var artifactshost = 'https://bootstrap.gig.tech/kernel/'; // retro-compatible
+    var artifactshosts = {
+        'kernel': 'https://bootstrap.gig.tech/kernel/',
+        'flist': 'https://hub.gig.tech/gig-autobuilder/',
+        'binary': 'https://download.gig.tech/gig-autobuilder/',
+    };
     var timeouts = [];
 
     var statuscolors = {
@@ -237,7 +242,18 @@
             }
 
             if(data[idx]['artifact']) {
-                var lnk = $('<a>', {'href': artifactshost + data[idx]['artifact']}).html(data[idx]['artifact']);
+                var artifact = data[idx]['artifact'];
+                var segments = artifact.split("/");
+
+                if(artifactshosts[segments[0]]) {
+                    var targetlink = artifactshosts[segments[0]] + artifact;
+
+                } else {
+                    // fallback old behavior
+                    var targetlink = artifactshost + artifact;
+                }
+
+                var lnk = $('<a>', {'href': targetlink}).html(data[idx]['artifact']);
                 var text = $('<p>').html('<strong>Artifact</strong>: ');
                 text.append($('<code>').append(lnk));
 
