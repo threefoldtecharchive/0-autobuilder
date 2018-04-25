@@ -83,6 +83,12 @@ class AutobuilderWebApp:
 
             return response
 
+        @self.app.route('/build/sync', methods=['GET'])
+        def global_sync():
+            self.root.buildio.live_current()
+            self.root.buildio.live_history()
+            return "OK"
+
         #
         # Git Hook
         #
