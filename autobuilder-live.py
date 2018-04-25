@@ -81,7 +81,7 @@ class AutobuilderLive():
 
             if channel == 'autobuilder-update':
                 print("[+] specific update")
-                await self.wsbroadcast("update", response['data'].decode('utf-8'))
+                await self.wsbroadcast("update", json.loads(response['data'].decode('utf-8')))
                 continue
 
     def run(self):

@@ -33,9 +33,13 @@ table tfoot {
 	background: #F5F5F5;
 }
 
-hr {
-	margin-top: 35px;
-	margin-bottom: 35px;
+pre {
+    overflow-wrap: break-word;
+    background-color: #272727;
+    color: #FFFFFF;
+    white-space: pre-wrap;
+    font-family: 'Ubuntu Mono';
+    font-size: 0.95em;
 }
 
 #disconnected {

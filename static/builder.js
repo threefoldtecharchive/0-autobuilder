@@ -28,6 +28,12 @@ var statusmsg = {
     'initializing': 'initializing the image',
 };
 
+var ansiup = new AnsiUp;
+
+var buildio = {};
+var buildtime = {};
+
+
 /*
 function set_timeout(callback, time) {
     timeouts.push(setTimeout(callback, time));
@@ -52,6 +58,56 @@ function force_update() {
     update();
 }
 */
+
+function progress_update(payload) {
+    var pid = payload['id'];
+    var line = payload['line'];
+    var shift = null;
+
+    if(buildio[pid] == undefined)
+        buildio[pid] = new CBuffer(15);
+
+    var append = "";
+
+    // if this line doesn't contains new line
+    // append this to last line
+    if(line.indexOf("\n") == -1) {
+        if(shift = buildio[pid].shift()) {
+            if(shift.indexOf("\n") == -1) {
+                append = shift;
+            }
+        }
+    }
+
+    append += line;
+    buildio[pid].push(ansiup.ansi_to_html(append))
+
+    var running = $('#' + pid + ' pre');
+    running.html(buildio[pid].toArray().join(""));
+}
+
+function elapsedtime(now, started) {
+    minutes = parseInt((now - started) / 60);
+    seconds = ((now - started) % 60).toFixed(0);
+
+    return '<strong>Build time</strong>: ' + minutes + ' minutes ' + seconds + ' seconds ago';
+}
+
+function update_times() {
+    var items = $('#build-status .panel-body .buildtime');
+
+    // nothing to update
+    if(items.length == 0)
+        return;
+
+    var now = parseInt(new Date().getTime() / 1000);
+
+    items.each(function(index) {
+        var id = $(this).closest('div').attr('id');
+        var str = elapsedtime(now, buildtime[id]);
+        $(this).html(str);
+    });
+}
 
 function refresh(data, type) {
     // console.log(data);
@@ -146,7 +202,12 @@ function refresh(data, type) {
             var title = $('<div>').append(code).append(' ').append(lnk).html();
         }
 
+
         var when = new Date(data[idx]['started'] * 1000);
+
+        if(type == 'status')
+            buildtime[idx] = data[idx]['started'];
+
         heading.append($('<h3>', {'class': 'panel-title pull-left'}).html(title));
         heading.append($('<small>', {'class': 'pull-right'}).html(when));
         heading.append($('<div>', {'class': 'clearfix'}));
@@ -155,7 +216,7 @@ function refresh(data, type) {
         //
         // body
         //
-        var id = (type == 'history') ? "panel-" + zindex + "-" + rootcommit : "";
+        var id = (type == 'history') ? "panel-" + zindex + "-" + rootcommit : idx;
         var clss = (type == 'history') ? "panel-body collapse" : "panel-body";
 
         var content = $('<div>', {'class': clss, 'id': id});
@@ -183,7 +244,7 @@ function refresh(data, type) {
         content.append(list);
 
         if(data[idx]['status'] == 'error') {
-            var text = $('<p>').html('<strong>Error</strong>: ' + data[idx]['error'])
+            var text = $('<p>').html('<strong>Error</strong>: ').append('<span>').text(data[idx]['error']);
             content.append(text);
         }
 
@@ -209,24 +270,16 @@ function refresh(data, type) {
         }
 
         // compute execution time
-        if(data[idx]['ended']) {
-            var elapsed = ((data[idx]['ended'] - data[idx]['started']) / 60).toFixed(1);
-            var text = $('<p>').html('<strong>Build time</strong>: ' + elapsed + ' minutes');
-            content.append(text);
-
-        } else {
-            var elapsed = (((Date.now() / 1000) - data[idx]['started']) / 60).toFixed(1);
-            var text = $('<p>').html('<strong>Build started</strong>: ' + elapsed + ' minutes ago');
-            content.append(text);
-        }
+        var btime = (data[idx]['ended']) ? data[idx]['ended'] : Date.now() / 1000;
+        var str = elapsedtime(btime, data[idx]['started']);
+        var text = $('<p>', {'class': 'buildtime'}).html(str);
+        content.append(text);
 
         // do not shot console if empty
-        if(data[idx]['monitor']) {
-            var logs = $('<pre>').html(data[idx]['monitor']);
-
-            content.append($('<hr>'));
-            content.append(logs);
-        }
+        var logstr = data[idx]['monitor'] ? data[idx]['monitor'] : "Waiting for logs";
+        var logs = $('<pre>').html(logstr);
+        content.append($('<hr>'));
+        content.append(logs);
 
         // probably a build id, not a numeric id
         if(idx.length > 10) {
@@ -285,13 +338,15 @@ $(window).focus(function() {
 });
 */
 
-
+function timers() {
+    console.log("Set update");
+    setInterval(update_times, 1000);
+}
 
 
 function connect() {
-    var host = window.location.host
-    // socket = new WebSocket("ws://" + host + "/ws");
-    socket = new WebSocket("ws://10.241.0.232:3333/");
+    var host = window.location.host;
+    socket = new WebSocket("ws://" + host + "/buildio");
 
     socket.onopen = function() {
         console.log("websocket open");
@@ -305,18 +360,19 @@ function connect() {
         switch(json['event']) {
             case "history":
                 var length = Object.keys(json['payload']).length;
-                console.log("History update: " + length + ' entries');
+                // console.log("History update: " + length + ' entries');
                 // console.log(json['payload']);
                 refresh(json['payload'], "history");
             break;
 
             case "update":
-                console.log("Build line update");
-                console.log(json['payload']);
+                // console.log("Build line update");
+                // console.log(json['payload']);
+                progress_update(json['payload']);
             break;
 
             case "status":
-                console.log("Build status update");
+                // console.log("Build status update");
                 // console.log(json['payload']);
                 refresh(json['payload'], 'status');
             break;
@@ -336,5 +392,6 @@ function connect() {
 $(document).ready(function() {
     // update();
     connect();
+    timers();
 });
 
