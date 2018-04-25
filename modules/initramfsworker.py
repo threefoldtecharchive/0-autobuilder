@@ -80,6 +80,8 @@ class AutobuilderInitramfsThread(threading.Thread):
         print("[+] temporary directory: %s" % tmpdir.name)
 
         print("[+] starting container")
+        self.task.set_baseimage(self.baseimage)
+
         volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
         target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes)
 

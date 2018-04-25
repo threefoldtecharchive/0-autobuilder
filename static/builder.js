@@ -269,6 +269,11 @@ function refresh(data, type) {
             content.append(text);
         }
 
+        if(data[idx]['baseimage']) {
+            var baseimg = $('<p>').html('<strong>Base image</strong>: ').append($('<code>').html(data[idx]['baseimage']));
+            content.append(baseimg);
+        }
+
         // compute execution time
         var btime = (data[idx]['ended']) ? data[idx]['ended'] : Date.now() / 1000;
         var str = elapsedtime(btime, data[idx]['started']);

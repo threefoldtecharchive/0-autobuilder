@@ -48,6 +48,7 @@ class BuildIO:
                 'commits': item['commits'],
                 'artifact': item['artifact'],
                 'tag': item['tag'],
+                'baseimage': item['baseimage'],
             }
 
         channel = "autobuilder-current" if notify else "autobuilder-current-update"
@@ -111,6 +112,7 @@ class BuildIO:
             'artifact': self.status[id]['artifact'],
             'tag': self.status[id]['tag'],
             'payload': self.status[id]['payload'],
+            'baseimage': self.status[id]['baseimage'],
         }
 
         history.insert(0, item)
@@ -141,6 +143,7 @@ class BuildIO:
             'branch': None,
             'logfile': os.path.join(self.root.config['logs-directory'], "commits", id),
             'tag': None,
+            'baseimage': None,
             'payload': {},
         }
 
@@ -261,6 +264,9 @@ class BuildIOTask:
 
     def set_payload(self, payload):
         self.setter('payload', payload)
+
+    def set_baseimage(self, baseimage):
+        self.setter('baseimage', baseimage)
 
     def set_from_push(self, payload):
         repository = payload['repository']['full_name']
