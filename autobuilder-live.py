@@ -60,8 +60,9 @@ class AutobuilderLive():
             for item in self.pubsub.listen():
                 return item
 
+        print("[+] starting redis fetching")
+
         while True:
-            print("[+] waiting for redis message")
             redis_future = loop.run_in_executor(None, looper)
             response = await redis_future
 
@@ -73,25 +74,25 @@ class AutobuilderLive():
             channel = response['channel'].decode('utf-8')
 
             if channel == 'autobuilder-history':
-                print("[+] update: history")
+                # print("[+] update: history")
                 self.history = json.loads(response['data'].decode('utf-8'))
                 await self.wsbroadcast("history", self.history)
                 continue
 
             if channel == 'autobuilder-current':
-                print("[+] update: current status list")
+                # print("[+] update: current status list")
                 self.current = json.loads(response['data'].decode('utf-8'))
                 await self.wsbroadcast("status", self.current)
                 continue
 
             if channel == 'autobuilder-current-update':
-                print("[+] update: current status list (internal)")
+                # print("[+] update: current status list (internal)")
                 self.current = json.loads(response['data'].decode('utf-8'))
                 continue
 
 
             if channel == 'autobuilder-update':
-                print("[+] update: build output line")
+                # print("[+] update: build output line")
                 await self.wsbroadcast("update", json.loads(response['data'].decode('utf-8')))
                 continue
 
