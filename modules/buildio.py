@@ -4,6 +4,7 @@ import docker
 import uuid
 import time
 import collections
+import redis
 
 class BuildIO:
     """
@@ -14,7 +15,11 @@ class BuildIO:
     def __init__(self, components):
         self.root = components
 
+        print("[+] buildio: connecting redis dispatching")
+        self.redis = redis.Redis(self.root.config['redis-host'], self.root.config['redis-port'])
+
         self.status = {}
+        self.live_history()
 
         # ensure logs directories
         if not os.path.exists(self.root.config['logs-directory']):
@@ -23,6 +28,36 @@ class BuildIO:
         sublogfiles = os.path.join(self.root.config['logs-directory'], "commits")
         if not os.path.exists(sublogfiles):
             os.mkdir(sublogfiles)
+
+    """
+    Live updater
+    """
+    def live_current(self):
+        output = {}
+        empty = ""
+
+        for key, item in self.status.items():
+            output[key] = {
+                'status': item['status'],
+                'name': item['name'],
+                'monitor': empty.join(item['console']),
+                'docker': item['docker'][0:10],
+                'started': item['started'],
+                'ended': item['ended'],
+                'error': item['error'],
+                'commits': item['commits'],
+                'artifact': item['artifact'],
+                'tag': item['tag'],
+            }
+
+        self.redis.publish("autobuilder-current", json.dumps(output))
+
+    def live_history(self):
+        history = self.raw(25)
+        self.redis.publish("autobuilder-history", history)
+
+    def live_update(self, id, line):
+        self.redis.publish("autobuilder-update", json.dumps({'id': id, 'line': line}))
 
     """
     Build history
@@ -73,6 +108,7 @@ class BuildIO:
             'commits': self.status[id]['commits'],
             'artifact': self.status[id]['artifact'],
             'tag': self.status[id]['tag'],
+            'payload': self.status[id]['payload'],
         }
 
         history.insert(0, item)
@@ -103,9 +139,13 @@ class BuildIO:
             'branch': None,
             'logfile': os.path.join(self.root.config['logs-directory'], "commits", id),
             'tag': None,
+            'payload': {},
         }
 
         self.status[id] = entry
+
+        self.live_current()
+
         return BuildIOTask(self.root, id)
 
     def get(self, id):
@@ -128,9 +168,14 @@ class BuildIO:
         entry = self.status[id]
         self.root.github.statuses(entry['commit'], id, status, entry['repository'])
 
+        # update live history
+        self.live_history()
+        self.live_current()
+
     def destroy(self, id):
         # removing object from running state
         del self.status[id]
+        self.live_current()
 
 
     """
@@ -163,7 +208,10 @@ class BuildIO:
             print("[%s] %s" % (dockid, line.strip().decode('utf-8')))
 
             # append to status
-            self.status[id]['console'].append(line.decode('utf-8'))
+            linestr = line.decode('utf-8')
+
+            self.status[id]['console'].append(linestr)
+            self.live_update(id, linestr)
 
             # save to logfile
             with open(self.status[id]['logfile'], "a") as logfile:
@@ -178,32 +226,39 @@ class BuildIOTask:
         self.root = components
         self.taskid = id
 
+    def setter(self, item, value):
+        self.root.buildio.status[self.taskid][item] = value
+        self.root.buildio.live_current()
+
     def set_repository(self, repository):
-        self.root.buildio.status[self.taskid]['repository'] = repository
+        self.setter('repository', repository)
 
     def set_artifact(self, artifact):
-        self.root.buildio.status[self.taskid]['artifact'] = artifact
+        self.setter('artifact', artifact)
 
     def set_status(self, status):
-        self.root.buildio.status[self.taskid]['status'] = status
+        self.setter('status', status)
 
     def set_commit(self, commitid):
-        self.root.buildio.status[self.taskid]['commit'] = commitid
+        self.setter('commit', commitid)
 
     def set_commits(self, commits):
-        self.root.buildio.status[self.taskid]['commits'] = commits
+        self.setter('commits', commits)
 
     def set_docker(self, dockerid):
-        self.root.buildio.status[self.taskid]['docker'] = dockerid
+        self.setter('docker', dockerid)
 
     def set_name(self, name):
-        self.root.buildio.status[self.taskid]['name'] = name
+        self.setter('name', name)
 
     def set_branch(self, branch):
-        self.root.buildio.status[self.taskid]['branch'] = branch
+        self.setter('branch', branch)
 
     def set_tag(self, tag):
-        self.root.buildio.status[self.taskid]['tag'] = tag
+        self.setter('tag', tag)
+
+    def set_payload(self, payload):
+        self.setter('payload', payload)
 
     def set_from_push(self, payload):
         repository = payload['repository']['full_name']
@@ -215,6 +270,7 @@ class BuildIOTask:
         shortname = "%s/%s" % (repository, branch)
         shortcommit = payload['head_commit']['id'][0:8]
 
+        self.set_payload(payload)
         self.set_repository(repository)
         self.set_commit(payload['head_commit']['id'])
         self.set_commits(payload['commits'])

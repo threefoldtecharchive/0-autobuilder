@@ -1,12 +1,12 @@
-var window_focus = true;
-var was_building = false;
+// var window_focus = true;
+// var was_building = false;
 var artifactshost = 'https://bootstrap.gig.tech/kernel/'; // retro-compatible
 var artifactshosts = {
     'kernel': 'https://bootstrap.gig.tech/kernel/',
     'flist': 'https://hub.gig.tech/gig-autobuilder/',
     'binary': 'https://download.gig.tech/gig-autobuilder/',
 };
-var timeouts = [];
+// var timeouts = [];
 
 var statuscolors = {
     'creating': 'info',
@@ -28,6 +28,7 @@ var statusmsg = {
     'initializing': 'initializing the image',
 };
 
+/*
 function set_timeout(callback, time) {
     timeouts.push(setTimeout(callback, time));
 }
@@ -50,6 +51,7 @@ function force_update() {
     clear_timeouts();
     update();
 }
+*/
 
 function refresh(data, type) {
     // console.log(data);
@@ -65,17 +67,19 @@ function refresh(data, type) {
 
             $("#build-" + type).append(text);
 
+            /*
             // build just finished, update history
             if(was_building)
                 update_history();
+            */
 
-            set_timeout(update_status, 2 * 60 * 1000);
+            // set_timeout(update_status, 2 * 60 * 1000);
             return;
         }
 
         // update 2 seconds
-        set_timeout(update_status, 2 * 1000);
-        was_building = true;
+        // set_timeout(update_status, 2 * 1000);
+        // was_building = true;
     }
 
     if(type == 'history') {
@@ -86,11 +90,11 @@ function refresh(data, type) {
             text.append('No history right now.');
 
             $("#build-" + type).append(text);
-            set_timeout(update_history, 2 * 60 * 1000);
+            // set_timeout(update_history, 2 * 60 * 1000);
             return;
         }
 
-        set_timeout(update_status, 30 * 1000);
+        // set_timeout(update_status, 30 * 1000);
     }
 
     var zindex = 0;
@@ -246,6 +250,7 @@ function refresh(data, type) {
     }
 }
 
+/*
 function update_status() {
     if(!window_focus)
         return;
@@ -264,11 +269,9 @@ function update() {
     update_status();
     update_history();
 }
+*/
 
-$(document).ready(function() {
-    update();
-});
-
+/*
 $(window).focus(function() {
     if(!window_focus) {
         window_focus = true;
@@ -280,3 +283,58 @@ $(window).focus(function() {
 }).blur(function() {
     window_focus = false;
 });
+*/
+
+
+
+
+function connect() {
+    var host = window.location.host
+    // socket = new WebSocket("ws://" + host + "/ws");
+    socket = new WebSocket("ws://10.241.0.232:3333/");
+
+    socket.onopen = function() {
+        console.log("websocket open");
+        $('#disconnected').hide();
+    }
+
+    socket.onmessage = function(msg) {
+        json = JSON.parse(msg.data);
+        // console.log(json);
+
+        switch(json['event']) {
+            case "history":
+                var length = Object.keys(json['payload']).length;
+                console.log("History update: " + length + ' entries');
+                // console.log(json['payload']);
+                refresh(json['payload'], "history");
+            break;
+
+            case "update":
+                console.log("Build line update");
+                console.log(json['payload']);
+            break;
+
+            case "status":
+                console.log("Build status update");
+                // console.log(json['payload']);
+                refresh(json['payload'], 'status');
+            break;
+
+            default:
+                console.log("Unknown type");
+                console.log(json);
+        }
+    }
+
+    socket.onclose = function() {
+        $('#disconnected').show();
+        setTimeout(connect, 2000);
+    }
+}
+
+$(document).ready(function() {
+    // update();
+    connect();
+});
+
