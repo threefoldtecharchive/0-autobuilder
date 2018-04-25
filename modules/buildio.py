@@ -32,7 +32,7 @@ class BuildIO:
     """
     Live updater
     """
-    def live_current(self):
+    def live_current(self, notify=True):
         output = {}
         empty = ""
 
@@ -50,7 +50,8 @@ class BuildIO:
                 'tag': item['tag'],
             }
 
-        self.redis.publish("autobuilder-current", json.dumps(output))
+        channel = "autobuilder-current" if notify else "autobuilder-current-update"
+        self.redis.publish(channel, json.dumps(output))
 
     def live_history(self):
         history = self.raw(25)
@@ -58,6 +59,7 @@ class BuildIO:
 
     def live_update(self, id, line):
         self.redis.publish("autobuilder-update", json.dumps({'id': id, 'line': line}))
+        self.live_current(False)
 
     """
     Build history

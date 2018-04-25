@@ -48,7 +48,12 @@ class AutobuilderLive():
             self.wsclients.remove(websocket)
 
     async def fetcher(self):
-        self.pubsub.subscribe(['autobuilder-current', 'autobuilder-history', 'autobuilder-update'])
+        self.pubsub.subscribe([
+            'autobuilder-current',
+            'autobuilder-history',
+            'autobuilder-update',
+            'autobuilder-current-update'
+        ])
         loop = asyncio.get_event_loop()
 
         def looper():
@@ -64,23 +69,29 @@ class AutobuilderLive():
                 print("[-] received type: %s, ignoring" % response['type'])
                 continue
 
-            print(response['data'])
+            # print(response['data'])
             channel = response['channel'].decode('utf-8')
 
             if channel == 'autobuilder-history':
-                print("[+] history update")
+                print("[+] update: history")
                 self.history = json.loads(response['data'].decode('utf-8'))
                 await self.wsbroadcast("history", self.history)
                 continue
 
             if channel == 'autobuilder-current':
-                print("[+] build update")
+                print("[+] update: current status list")
                 self.current = json.loads(response['data'].decode('utf-8'))
                 await self.wsbroadcast("status", self.current)
                 continue
 
+            if channel == 'autobuilder-current-update':
+                print("[+] update: current status list (internal)")
+                self.current = json.loads(response['data'].decode('utf-8'))
+                continue
+
+
             if channel == 'autobuilder-update':
-                print("[+] specific update")
+                print("[+] update: build output line")
                 await self.wsbroadcast("update", json.loads(response['data'].decode('utf-8')))
                 continue
 

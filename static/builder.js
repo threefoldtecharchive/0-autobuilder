@@ -277,7 +277,7 @@ function refresh(data, type) {
 
         // do not shot console if empty
         var logstr = data[idx]['monitor'] ? data[idx]['monitor'] : "Waiting for logs";
-        var logs = $('<pre>').html(logstr);
+        var logs = $('<pre>').html(ansiup.ansi_to_html(logstr));
         content.append($('<hr>'));
         content.append(logs);
 
