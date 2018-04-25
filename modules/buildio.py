@@ -85,6 +85,11 @@ class BuildIO:
 
         if limit is not None:
             temp = json.loads(contents)
+
+            # hide payload to the client
+            for i in range(limit):
+                del temp[i]['payload']
+
             return json.dumps(temp[0:limit])
 
         if not contents:
