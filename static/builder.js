@@ -273,7 +273,7 @@ function timers() {
 
 function connect() {
     var host = window.location.host;
-    socket = new WebSocket("ws://" + host + "/buildio");
+    socket = new WebSocket("wss://" + host + "/buildio");
 
     socket.onopen = function() {
         console.log("websocket open");
