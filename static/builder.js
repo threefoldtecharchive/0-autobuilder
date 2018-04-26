@@ -1,12 +1,9 @@
-// var window_focus = true;
-// var was_building = false;
 var artifactshost = 'https://bootstrap.gig.tech/kernel/'; // retro-compatible
 var artifactshosts = {
     'kernel': 'https://bootstrap.gig.tech/kernel/',
     'flist': 'https://hub.gig.tech/gig-autobuilder/',
     'binary': 'https://download.gig.tech/gig-autobuilder/',
 };
-// var timeouts = [];
 
 var statuscolors = {
     'creating': 'info',
@@ -33,31 +30,6 @@ var ansiup = new AnsiUp;
 var buildio = {};
 var buildtime = {};
 
-
-/*
-function set_timeout(callback, time) {
-    timeouts.push(setTimeout(callback, time));
-}
-
-function clear_timeouts() {
-    for(var i = 0; i < timeouts.length; i++) {
-        clearTimeout(timeouts[i]);
-    }
-}
-
-function refresh_status(data) {
-    refresh(data, 'status');
-}
-
-function refresh_history(data) {
-    refresh(data, 'history');
-}
-
-function force_update() {
-    clear_timeouts();
-    update();
-}
-*/
 
 function progress_update(payload) {
     var pid = payload['id'];
@@ -122,20 +94,8 @@ function refresh(data, type) {
             text.append('Nothing do to right now, all build done.');
 
             $("#build-" + type).append(text);
-
-            /*
-            // build just finished, update history
-            if(was_building)
-                update_history();
-            */
-
-            // set_timeout(update_status, 2 * 60 * 1000);
             return;
         }
-
-        // update 2 seconds
-        // set_timeout(update_status, 2 * 1000);
-        // was_building = true;
     }
 
     if(type == 'history') {
@@ -146,11 +106,8 @@ function refresh(data, type) {
             text.append('No history right now.');
 
             $("#build-" + type).append(text);
-            // set_timeout(update_history, 2 * 60 * 1000);
             return;
         }
-
-        // set_timeout(update_status, 30 * 1000);
     }
 
     var zindex = 0;
@@ -308,41 +265,6 @@ function refresh(data, type) {
     }
 }
 
-/*
-function update_status() {
-    if(!window_focus)
-        return;
-
-    $.get('/build/status', refresh_status);
-}
-
-function update_history() {
-    if(!window_focus)
-        return;
-
-    $.get('/build/history', refresh_history);
-}
-
-function update() {
-    update_status();
-    update_history();
-}
-*/
-
-/*
-$(window).focus(function() {
-    if(!window_focus) {
-        window_focus = true;
-        update();
-    }
-
-    window_focus = true;
-
-}).blur(function() {
-    window_focus = false;
-});
-*/
-
 function timers() {
     console.log("Set update");
     setInterval(update_times, 1000);
@@ -395,7 +317,6 @@ function connect() {
 }
 
 $(document).ready(function() {
-    // update();
     connect();
     timers();
 });
