@@ -39,6 +39,14 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.release = release
         self.root = components
 
+    def images_cleaner(self, client):
+        images = client.images.list()
+
+        for image in images:
+            if image.attrs['RepoTags'][0] == '<none>:<none>':
+                print("[+] cleaner: removing image: %s" % image.id)
+                client.images.remove(image.id)
+
     def kernel(self, tmpsource):
         """
         Extract the kernel from a container
@@ -142,5 +150,8 @@ class AutobuilderInitramfsThread(threading.Thread):
         # end of build process
         target.remove(force=True)
         tmpdir.cleanup()
+
+        # cleanup docker images
+        self.images_cleaner(client)
 
         return "OK"
