@@ -88,7 +88,8 @@ class BuildIO:
 
             # hide payload to the client
             for i in range(limit):
-                del temp[i]['payload']
+                if temp[i].get('payload'):
+                    del temp[i]['payload']
 
             return json.dumps(temp[0:limit])
 
