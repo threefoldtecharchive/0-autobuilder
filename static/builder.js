@@ -72,9 +72,9 @@ function progress_update(payload) {
     // if this line doesn't contains new line
     // append this to last line
     if(line.indexOf("\n") == -1) {
-        if(shift = buildio[pid].shift()) {
-            if(shift.indexOf("\n") == -1) {
-                append = shift;
+        if(pop = buildio[pid].pop()) {
+            if(pop.indexOf("\n") == -1) {
+                append = pop;
             }
         }
     }
