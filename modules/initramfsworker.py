@@ -19,9 +19,18 @@ class AutobuilderInitramfsThread(threading.Thread):
     def __init__(self, task, baseimage, script, release, components):
         threading.Thread.__init__(self)
 
+        if type(baseimage) is str:
+            # string image
+            self.baseimagename = baseimage
+            self.baseimage = baseimage
+
+        else:
+            # docker image object
+            self.baseimagename = baseimage.tags[0]
+            self.baseimage = baseimage.id
+
         self.task = task
         self.shortname = task.get('name')
-        self.baseimage = baseimage
         self.repository = task.get('repository')
         self.script = script
         self.branch = task.get('branch')
@@ -80,7 +89,7 @@ class AutobuilderInitramfsThread(threading.Thread):
         print("[+] temporary directory: %s" % tmpdir.name)
 
         print("[+] starting container")
-        self.task.set_baseimage(self.baseimage)
+        self.task.set_baseimage(self.baseimagename)
 
         volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
         target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes)
