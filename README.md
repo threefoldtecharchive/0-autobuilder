@@ -15,7 +15,38 @@ When a push is received, some actions are donc depending of the repository.
 ### Flist
 This service autobuild flists based on user-defined configuration repository
 
-.....
+The reposity provided in configuration will be auto-set to trigger push to this webservice.
+This allows hot-reload when pushing into configuration.
+
+Each directories are one organization/username to watch, and subdirectories are repositories.
+Each subdirectory need to contains `branchname.yaml` file. This file looks like this:
+
+```
+buildscripts:
+  - autobuild/gig-flist-build-1.sh
+  - autobuild/gig-flist-build-2.sh
+
+autobuild/gig-flist-build-1.sh:
+  archives: /tmp/archives
+  artifact: result.tar.gz
+
+autobuild/gig-flist-build-2.sh:
+  baseimage: ubuntu:14.04
+  archives: /tmp/archives
+  artifact: result.tar.gz
+  tag: special-tag
+```
+
+You need at least one `buildscripts` entry, which contains a list of build-scripts.
+
+Each buildscript needs to be defined and accepts following keys:
+- archives: **(needed)** provide path where to find artifact
+- artifact: **(needed)** provide filename of the final archive
+- baseimage: image to use on the container, default is `ubuntu:16.04`
+- tag: a special tag added to the build name
+
+As soon as something is pushed to a tracked `branchname`, the build scripts are executed and artifacts
+are uploaded to the hub.
 
 ## Actions
 When a push is received from `zero-os/initramfs`:
@@ -28,13 +59,9 @@ When a push is received from `zero-os/core0` or `zero-os/g8ufs`:
 - When build is done, kernel is extracted and copied to `bootstrap` [zero-os/bootstrap]
 
 ## Configuration
-You can configure the service via `config.py` (please copy `config-sample.py` and adapt it):
-- `TOKEN`: token used to authorize webhook (not used yet)
-- `KERNEL_TARGET`: path to store artifacts
-- `LOGS_DIRECTORY`: path to store logs
-- `TMP_DIRECTORY`: prefix for temp directories (`None` for system default), see Neasted Docker for more info
-- `HTTP_PORT`: http listen port
-- `DEBUG`: enable (True) or disable (False) Flask debug mode
+You can configure the service via `config.py`.
+
+> Please copy `config-sample.py`, and configure it, information is inside this file.
 
 You need to specify webhook to point to this webserice, the endpoint is: `/build/[project]/hook`. `[project]` is an arbitrary name.
 
@@ -48,8 +75,13 @@ will be created on the host and not on your container, to fix this issue, you ne
 points to a shared directory between container and host.
 
 ## Monitor
-### Web Logs
-The endpoint `/monitor` will shows you in (nearly) realtime what's currently going on and previous build process
+### Web Interface
+The endpoint `/monitor` will shows you in realtime what's currently going on and previous build process.
+
+The realtime logs are sent via websocket, as soon as the line is received in the python client.
+
+In order to proceed websocket correctly, this process is not run in the main web server.
+A redis-topic is used to communicate between server and websocket-server.
 
 You can reach some logs and specific build status with:
 - `/build/history`
@@ -58,7 +90,7 @@ You can reach some logs and specific build status with:
 
 ### GitHub Statuses
 Moreover, webservice will update github statuses according to the build process.
-Status like **success**, **error** and **pending*** will be forwarded to GitHub and full-logs url
+Status like **success**, **error** and **pending** will be forwarded to GitHub and full-logs url
 will be dispatched as well. You can use this service to authorize Pull Requests only on success build.
 
 ### Configuration parser
@@ -66,6 +98,11 @@ When then autobuilder starts or the configuration repository is modified, during
 configuration files, the parsing is logged like any build and status is reported to github as well.
 You can easily knows some configuration files was malformed, etc.
 
-## Documentation
+# Warning
+Then initramfs are build, all images with empty tag and repository name are removed.
 
+Then rebuilding a lot of image, this leak a lot of unused space. Be careful to tag your images
+if you want to keep them.
+
+# Documentation
 For more documentation see the [`/docs`](./docs) directory, where you'll find a [table of contents](/docs/SUMMARY.md).
