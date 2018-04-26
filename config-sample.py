@@ -37,4 +37,12 @@ config = {
 
     # Enable debug or production mode
     'debug': True,
+
+    # Websocket Redis Gateway server
+    'redis-host': '127.0.0.1',
+    'redis-port': 6379,
+
+    # Websocket Gateway webserver
+    'websocket-listen': '0.0.0.0',
+    'websocket-port': 3333,
 }

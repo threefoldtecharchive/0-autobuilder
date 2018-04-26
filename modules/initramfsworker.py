@@ -19,9 +19,18 @@ class AutobuilderInitramfsThread(threading.Thread):
     def __init__(self, task, baseimage, script, release, components):
         threading.Thread.__init__(self)
 
+        if type(baseimage) is str:
+            # string image
+            self.baseimagename = baseimage
+            self.baseimage = baseimage
+
+        else:
+            # docker image object
+            self.baseimagename = baseimage.tags[0]
+            self.baseimage = baseimage.id
+
         self.task = task
         self.shortname = task.get('name')
-        self.baseimage = baseimage
         self.repository = task.get('repository')
         self.script = script
         self.branch = task.get('branch')
@@ -29,6 +38,14 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.commit = task.get('commit')[0:10]
         self.release = release
         self.root = components
+
+    def images_cleaner(self, client):
+        images = client.images.list()
+
+        for image in images:
+            if image.attrs['RepoTags'][0] == '<none>:<none>':
+                print("[+] cleaner: removing image: %s" % image.id)
+                client.images.remove(image.id)
 
     def kernel(self, tmpsource):
         """
@@ -80,6 +97,8 @@ class AutobuilderInitramfsThread(threading.Thread):
         print("[+] temporary directory: %s" % tmpdir.name)
 
         print("[+] starting container")
+        self.task.set_baseimage(self.baseimagename)
+
         volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
         target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes)
 
@@ -131,5 +150,8 @@ class AutobuilderInitramfsThread(threading.Thread):
         # end of build process
         target.remove(force=True)
         tmpdir.cleanup()
+
+        # cleanup docker images
+        self.images_cleaner(client)
 
         return "OK"

@@ -11,13 +11,13 @@ class AutobuilderFlistThread(threading.Thread):
     This class handle the build-thread flist
 
     Workflow:
-     - start a container with git support
+     - start a container
      - clone the repository
      - for each buildscripts configured:
        - execute this buildscript
        - upload the artifact on the hub
     """
-    def __init__(self, components, task):
+    def __init__(self, components, task, recipe, buildscript):
         threading.Thread.__init__(self)
 
         self.root = components
@@ -26,7 +26,8 @@ class AutobuilderFlistThread(threading.Thread):
         self.shortname = task.get('name')
         self.branch = task.get('branch')
         self.repository = task.get('repository')
-        self.recipe = {}
+        self.recipe = recipe
+        self.buildscript = buildscript
 
         self.default_baseimage = self.root.monitor.default_baseimage
         self.default_archives = self.root.monitor.default_archives
@@ -84,8 +85,8 @@ class AutobuilderFlistThread(threading.Thread):
 
         self.task.set_artifact("binary/%s" % os.path.basename(targetpath))
 
-    def upload(self, buildscript, targetpath, tag):
-        uploader = self.recipe[buildscript].get('format')
+    def upload(self, targetpath, tag):
+        uploader = self.recipe.get('format')
         if not uploader:
             return self.upload_flist(targetpath, tag)
 
@@ -97,7 +98,7 @@ class AutobuilderFlistThread(threading.Thread):
     #
     # builder
     #
-    def build(self, baseimage, buildscript, archives, artifact, tag):
+    def build(self, baseimage, archives, artifact, tag):
         # connecting docker
         client = docker.from_env()
 
@@ -137,10 +138,10 @@ class AutobuilderFlistThread(threading.Thread):
         self.task.set_status('building')
 
         try:
-            command = "chmod +x /%s/%s" % (os.path.basename(self.repository), buildscript)
+            command = "chmod +x /%s/%s" % (os.path.basename(self.repository), self.buildscript)
             self.task.execute(target, command)
 
-            command = "/%s/%s" % (os.path.basename(self.repository), buildscript)
+            command = "/%s/%s" % (os.path.basename(self.repository), self.buildscript)
             self.task.execute(target, command)
 
             artifactfile = os.path.join(tmpdir.name, artifact)
@@ -155,7 +156,7 @@ class AutobuilderFlistThread(threading.Thread):
             targetpath = os.path.join(tmpdir.name, self._flist_targz(tag))
             os.rename(artifactfile, targetpath)
 
-            self.upload(buildscript, targetpath, tag)
+            self.upload(targetpath, tag)
 
             # build well done
             self.task.success()
@@ -172,20 +173,19 @@ class AutobuilderFlistThread(threading.Thread):
         return "OK"
 
     def run(self):
-        for buildscript in self.recipe['buildscripts']:
-            artifact = self.recipe[buildscript]['artifact']
-            baseimage = self.recipe[buildscript].get('baseimage') or self.default_baseimage
-            archives = self.recipe[buildscript].get('archives') or self.default_archives
+        artifact = self.recipe['artifact']
+        baseimage = self.recipe.get('baseimage') or self.default_baseimage
+        archives = self.recipe.get('archives') or self.default_archives
 
-            tag = self.recipe[buildscript].get('tag')
-            self.task.set_tag(tag)
+        tag = self.recipe.get('tag')
+        self.task.set_tag(tag)
+        self.task.set_baseimage(baseimage)
 
-            print("[+] building script: %s" % buildscript)
-            print("[+]  - artifact expected: %s" % artifact)
-            print("[+]  - base image: %s" % baseimage)
-            print("[+]  - archive directory: %s" % archives)
-            print("[+]  - extra tag: %s" % tag)
+        print("[+] building script: %s" % self.buildscript)
+        print("[+]  - artifact expected: %s" % artifact)
+        print("[+]  - base image: %s" % baseimage)
+        print("[+]  - archive directory: %s" % archives)
+        print("[+]  - extra tag: %s" % tag)
 
-            self.build(baseimage, buildscript, archives, artifact, tag)
-
+        self.build(baseimage, archives, artifact, tag)
         self.task.destroy()

@@ -104,7 +104,7 @@ class AutobuilderInitramfs:
                 return
 
             print("[+] base image found: %s" % baseimage.tags)
-            return self.build(task, baseimage.id, "gig-build-cores.sh", False)
+            return self.build(task, baseimage, "gig-build-cores.sh", False)
 
         if task.get('repository') == "zero-os/0-fs":
             baseimage = self.imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
@@ -114,7 +114,7 @@ class AutobuilderInitramfs:
                 return
 
             print("[+] base image found: %s" % baseimage.tags)
-            return self.build(task, baseimage.id, "gig-build-g8ufs.sh", False)
+            return self.build(task, baseimage, "gig-build-g8ufs.sh", False)
 
         if task.get('repository') == "g8os/initramfs-gig":
             baseimage = self.imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
@@ -124,7 +124,7 @@ class AutobuilderInitramfs:
                 return
 
             print("[+] base image found: %s" % baseimage.tags)
-            return self.build(task, baseimage.id, "gig-build-extensions.sh", False)
+            return self.build(task, baseimage, "gig-build-extensions.sh", False)
 
         if task.get('repository') == "zero-os/0-initramfs":
             return self.build(task, "ubuntu:16.04", "gig-build.sh", True)

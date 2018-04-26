@@ -220,12 +220,15 @@ class AutobuilderFlistMonitor:
 
         print("[+] push: %s: build trigger accepted (branch: %s)" % (repository, branch))
 
-        task = self.root.buildio.create()
-        task.set_from_push(payload)
+        for buildscript in self.repositories[repository][branch]['buildscripts']:
+            task = self.root.buildio.create()
+            task.set_from_push(payload)
 
-        worker = AutobuilderFlistThread(self.root, task)
-        worker.recipe = self.repositories[repository][branch]
-        worker.start()
+            recipe = self.repositories[repository][branch][buildscript]
+
+            print("[+] instanciating: %s" % buildscript)
+            worker = AutobuilderFlistThread(self.root, task, recipe, buildscript)
+            worker.start()
 
         return {'status': 'success'}
 
