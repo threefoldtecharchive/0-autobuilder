@@ -88,6 +88,9 @@ class BuildIO:
 
             # hide payload to the client
             for i in range(limit):
+                if len(temp) <= limit:
+                    break
+
                 if temp[i].get('payload'):
                     del temp[i]['payload']
 
