@@ -30,14 +30,8 @@ var ansiup = new AnsiUp;
 var buildio = {};
 var buildtime = {};
 
-
-function progress_update(payload) {
-    var pid = payload['id'];
-    var line = payload['line'];
+function progress_update_line(pid, line) {
     var shift = null;
-
-    if(buildio[pid] == undefined)
-        buildio[pid] = new CBuffer(15);
 
     var append = "";
 
@@ -56,6 +50,20 @@ function progress_update(payload) {
 
     var running = $('#' + pid + ' pre');
     running.html(buildio[pid].toArray().join(""));
+    running.scrollTop(running.prop("scrollHeight"));
+}
+
+function progress_update(payload) {
+    var pid = payload['id'];
+    var line = payload['line'];
+    var shift = null;
+
+    if(buildio[pid] == undefined)
+        buildio[pid] = new CBuffer(15);
+
+    var lines = line.split(";");
+    for(var i in lines)
+        progress_update_line(pid, lines[i]);
 }
 
 function elapsedtime(now, started) {

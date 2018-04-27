@@ -40,6 +40,7 @@ pre {
     white-space: pre-wrap;
     font-family: 'Ubuntu Mono';
     font-size: 0.95em;
+    height: 300px;
 }
 
 #disconnected {
@@ -47,4 +48,21 @@ pre {
     text-align: center;
     font-size: 2em;
     padding: 2em;
+}
+
+pre::-webkit-scrollbar {
+    width: 8px;
+}
+
+pre::-webkit-scrollbar-track {
+    -webkit-border-radius: 10px;
+    border-radius: 10px;
+}
+
+pre::-webkit-scrollbar-thumb {
+    opacity: 0.1;
+    -webkit-border-radius: 10px;
+    border-radius: 10px;
+    background: rgba(200, 200, 200, 0.5);
+    -webkit-box-shadow: inset 0 0 6px rgba(0, 0, 0, 0.5);
 }

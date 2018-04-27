@@ -201,6 +201,8 @@ class BuildIO:
         message = message + "\n"
         self.status[id]['console'].append(message)
 
+        self.live_update(id, message)
+
         with open(self.status[id]['logfile'], "a") as logfile:
             logfile.write(message)
 
