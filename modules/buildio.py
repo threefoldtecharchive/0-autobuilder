@@ -5,6 +5,7 @@ import uuid
 import time
 import collections
 import redis
+import sqlite3
 
 class BuildIO:
     """
@@ -18,9 +19,6 @@ class BuildIO:
         print("[+] buildio: connecting redis dispatching")
         self.redis = redis.Redis(self.root.config['redis-host'], self.root.config['redis-port'])
 
-        self.status = {}
-        self.live_history()
-
         # ensure logs directories
         if not os.path.exists(self.root.config['logs-directory']):
             os.mkdir(self.root.config['logs-directory'])
@@ -28,6 +26,15 @@ class BuildIO:
         sublogfiles = os.path.join(self.root.config['logs-directory'], "commits")
         if not os.path.exists(sublogfiles):
             os.mkdir(sublogfiles)
+
+        # opening history database
+        dbfile = os.path.join(self.root.config['logs-directory'], "history.sqlite")
+        self.db = sqlite3.connect(dbfile, check_same_thread=False)
+        self.history_init()
+
+        # initialize states
+        self.status = {}
+        self.live_history()
 
     """
     Live updater
@@ -55,8 +62,8 @@ class BuildIO:
         self.redis.publish(channel, json.dumps(output))
 
     def live_history(self):
-        history = self.raw(25)
-        self.redis.publish("autobuilder-history", history)
+        history = self.backlog(25)
+        self.redis.publish("autobuilder-history", json.dumps(history))
 
     def live_update(self, id, line):
         self.redis.publish("autobuilder-update", json.dumps({'id': id, 'line': line}))
@@ -65,54 +72,49 @@ class BuildIO:
     """
     Build history
     """
-    def backlog(self, limit=None):
-        """
-        Returns json object of the backlog, with optional limits
-        """
-        return json.loads(self.raw(limit))
+    def history_init(self):
+        c = self.db.cursor()
+        c.execute('''
+            CREATE TABLE IF NOT EXISTS history (
+                id integer primary key autoincrement,
+                created datetime,
+                push text,
+                content text
+            )
+        ''')
 
-    def raw(self, limit=None):
+        self.db.commit()
+
+    def backlog(self, limit=None):
         """
         Returns raw text object of the backlog, with optional limits
         """
-        filepath = os.path.join(self.root.config['logs-directory'], "history.json")
+        c = self.db.cursor()
 
-        if not os.path.isfile(filepath):
-            return "[]\n"
+        query = "SELECT content FROM history ORDER BY created DESC"
+        if limit:
+            query += " LIMIT %d" % limit
 
-        with open(filepath, "r") as f:
-            contents = f.read()
+        entries = []
 
-        if limit is not None:
-            temp = json.loads(contents)
+        for row in c.execute(query):
+            entries.append(json.loads(row[0]))
 
-            # hide payload to the client
-            for i in range(limit):
-                if len(temp) <= limit:
-                    break
+        print("[+] backlog: %d entries found" % len(entries))
 
-                if temp[i].get('payload'):
-                    del temp[i]['payload']
-
-            return json.dumps(temp[0:limit])
-
-        if not contents:
-            contents = "[]\n"
-
-        return contents
+        return entries
 
     def commit(self, id):
         """
         Insert entry to the raw backlog file
         """
-        history = self.backlog()
-        empty = ""
+        c = self.db.cursor()
 
         item = {
             'id': id,
             'name': self.status[id]['name'],
             'status': self.status[id]['status'],
-            'monitor': empty.join(self.status[id]['console']),
+            'monitor': "".join(self.status[id]['console']),
             'docker': self.status[id]['docker'][0:10],
             'started': self.status[id]['started'],
             'ended': self.status[id]['ended'],
@@ -120,16 +122,13 @@ class BuildIO:
             'commits': self.status[id]['commits'],
             'artifact': self.status[id]['artifact'],
             'tag': self.status[id]['tag'],
-            'payload': self.status[id]['payload'],
+            # 'payload': self.status[id]['payload'],
             'baseimage': self.status[id]['baseimage'],
         }
 
-        history.insert(0, item)
-
-        filepath = os.path.join(self.root.config['logs-directory'], "history.json")
-
-        with open(filepath, "w") as f:
-            f.write(json.dumps(history))
+        params = (json.dumps(self.status[id]['payload']), json.dumps(item))
+        c.execute("INSERT INTO history (created, push, content) VALUES (datetime('now'), ?, ?)", params)
+        self.db.commit()
 
     """
     Build entry

@@ -71,17 +71,11 @@ class AutobuilderWebApp:
 
         @self.app.route('/build/history/full', methods=['GET'])
         def global_history_full():
-            response = make_response(self.root.buildio.raw())
-            response.headers["Content-Type"] = "application/json"
-
-            return response
+            return jsonify(self.root.buildio.backlog())
 
         @self.app.route('/build/history', methods=['GET'])
         def global_history():
-            response = make_response(self.root.buildio.raw(25))
-            response.headers["Content-Type"] = "application/json"
-
-            return response
+            return jsonify(self.root.buildio.backlog(25))
 
         @self.app.route('/build/sync', methods=['GET'])
         def global_sync():
