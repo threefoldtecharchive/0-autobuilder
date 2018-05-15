@@ -183,6 +183,10 @@ class AutobuilderFlistMonitor:
         print("[+] webhook: managing: %s" % repository)
 
         existing = self.root.github.request('/repos/%s/hooks' % repository)
+        if not isinstance(existing, list):
+            print("[-] webhook: repository not found probably")
+            return
+
         for hook in existing:
             if not hook['config'].get('url'):
                 continue
