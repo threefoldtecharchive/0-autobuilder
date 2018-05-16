@@ -99,7 +99,7 @@ function refresh(data, type) {
             var text = $('<h2>', {'class': 'text-success'});
             text.append($('<span>', {'class': 'glyphicon glyphicon-ok'}));
             text.append('<br>');
-            text.append('Nothing do to right now, all build done.');
+            text.append('Nothing to do right now, all build done.');
 
             $("#build-" + type).append(text);
             return;
