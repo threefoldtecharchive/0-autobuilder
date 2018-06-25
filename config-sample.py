@@ -45,4 +45,7 @@ config = {
     # Websocket Gateway webserver
     'websocket-listen': '0.0.0.0',
     'websocket-port': 3333,
+
+    # Extra hosts entries to add to containers
+    'extra-hosts': {'my.custom.site': '1.2.3.4'}
 }
