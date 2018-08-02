@@ -100,7 +100,7 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.task.set_baseimage(self.baseimagename)
 
         volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
-        target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes, extra_hosts=extra_hosts=self.root.config['extra-hosts'])
+        target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes, extra_hosts=self.root.config['extra-hosts'])
 
         self.task.set_status('initializing')
         self.task.set_docker(target.id)
