@@ -12,10 +12,10 @@ class AutobuilderInitramfs:
         self.root = components
 
         self.watching = [
-            "zero-os/0-core",
-            "zero-os/0-fs",
+            "threefoldtech/0-core",
+            "threefoldtech/0-fs",
             "g8os/initramfs-gig",
-            "zero-os/0-initramfs",
+            "threefoldtech/0-initramfs",
         ]
 
         # ensure kernel directory
@@ -96,8 +96,8 @@ class AutobuilderInitramfs:
         """
 
         # This is a little bit hardcoded for our side
-        if task.get('repository') == "zero-os/0-core":
-            baseimage = self.imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
+        if task.get('repository') == "threefoldtech/0-core":
+            baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
             if not baseimage:
                 task.error('No base image found for branch: %s' % task.get('branch'))
                 task.destroy()
@@ -106,8 +106,8 @@ class AutobuilderInitramfs:
             print("[+] base image found: %s" % baseimage.tags)
             return self.build(task, baseimage, "gig-build-cores.sh", False)
 
-        if task.get('repository') == "zero-os/0-fs":
-            baseimage = self.imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
+        if task.get('repository') == "threefoldtech/0-fs":
+            baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
             if not baseimage:
                 task.error('No base image found for branch: %s' % task.get('branch'))
                 task.destroy()
@@ -117,7 +117,7 @@ class AutobuilderInitramfs:
             return self.build(task, baseimage, "gig-build-g8ufs.sh", False)
 
         if task.get('repository') == "g8os/initramfs-gig":
-            baseimage = self.imagefrom(client, "zero-os/0-initramfs", task.get('branch'))
+            baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
             if not baseimage:
                 task.error('No base image found for branch: %s' % task.get('branch'))
                 task.destroy()
@@ -126,7 +126,7 @@ class AutobuilderInitramfs:
             print("[+] base image found: %s" % baseimage.tags)
             return self.build(task, baseimage, "gig-build-extensions.sh", False)
 
-        if task.get('repository') == "zero-os/0-initramfs":
+        if task.get('repository') == "threefoldtech/0-initramfs":
             return self.build(task, "ubuntu:16.04", "gig-build.sh", True)
 
         task.error("Unknown kernel repository, we don't follow this one.")
