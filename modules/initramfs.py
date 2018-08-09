@@ -131,7 +131,6 @@ class AutobuilderInitramfs:
 
         task.error("Unknown kernel repository, we don't follow this one.")
         task.destroy()
-        abort(404)
 
     def webhooks(self):
         """
