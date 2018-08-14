@@ -15,7 +15,7 @@ class ZeroHubClient:
         self.token = self.root.config['zerohub-token']
         self.user = self.root.config['zerohub-username']
 
-        self.baseurl = 'https://hub.grid.tf'
+        self.baseurl = self.root.config['zerohub-website']
         self.baseiyo = 'https://itsyou.online'
 
         self.cookies = {

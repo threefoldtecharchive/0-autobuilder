@@ -31,6 +31,7 @@ config = {
 
     # ZeroHub **refreshable** jwt-token
     'zerohub-token': '',
+    'zerohub-website': 'https://hub.grid.tf',
 
     # ZeroHub username acting upload (needs to belong to the jwt scope)
     'zerohub-username': '',
