@@ -217,6 +217,7 @@ class BuildIO:
         Execute a command inside docker container and track output
         """
         dockid = target.id[0:10]
+        print(command)
 
         for line in target.exec_run(command, stream=True, stderr=True):
             # debug to console
