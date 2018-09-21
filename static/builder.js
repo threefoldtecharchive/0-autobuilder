@@ -1,8 +1,8 @@
 var artifactshost = 'https://bootstrap.grid.tf/kernel/'; // retro-compatible
 var artifactshosts = {
     'kernel': 'https://bootstrap.grid.tf/kernel/',
-    'flist': 'https://hub.grid.tf/gig-autobuilder/',
-    'binary': 'https://download.grid.tf/gig-autobuilder/',
+    'flist': 'https://hub.grid.tf/tf-autobuilder/',
+    'binary': 'https://download.grid.tf/tf-autobuilder/',
 };
 
 var statuscolors = {
