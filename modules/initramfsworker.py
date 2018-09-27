@@ -3,6 +3,7 @@ import tempfile
 import shutil
 import docker
 import traceback
+import tarfile
 import threading
 
 class AutobuilderInitramfsThread(threading.Thread):
@@ -39,6 +40,46 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.release = release
         self.root = components
 
+        self.kernelname = None
+        self.kernellink = None
+
+    def flist_kernel(self, targetpath):
+        # building archive
+        tmpdir = tempfile.TemporaryDirectory(prefix="initramfs-flist-", dir=self.root.config['temp-directory'])
+        tmptar = tempfile.TemporaryDirectory(prefix="initramfs-archive-", dir=self.root.config['temp-directory'])
+        shutil.copyfile("%s/vmlinuz.efi" % targetpath, "%s/kernel.efi" % tmpdir.name)
+
+        # building bootable yaml
+        bootyaml  = "kernel: /kernel.efi\n"
+        bootyaml += "nodefault: true\n"
+
+        os.mkdir("%s/boot" % tmpdir.name)
+        with open("%s/boot/boot.yaml" % tmpdir.name, 'w') as f:
+            f.write(bootyaml)
+
+        # link file without extensions
+        sourceimg = self.kernelname[:-4]
+        symlinkimg = self.kernellink[:-4]
+
+        # building tar.gz file
+        tarfilename = os.path.join(tmptar.name, sourceimg) + ".tar.gz"
+        with tarfile.open(tarfilename, "w:gz") as tar:
+            tar.add(tmpdir.name, arcname="")
+
+        # upload the flist
+        print("[+] refreshing jwt")
+        self.root.zerohub.refresh()
+
+        print("[+] uploading file")
+        self.root.zerohub.upload(tarfilename)
+
+        print("[+] updating symlink")
+        print(sourceimg, symlinkimg)
+        self.root.zerohub.symlink(symlinkimg, sourceimg)
+
+        tmpdir.cleanup()
+        tmptar.cleanup()
+
     def images_cleaner(self, client):
         images = client.images.list()
 
@@ -59,6 +100,7 @@ class AutobuilderInitramfsThread(threading.Thread):
         # format kernel "zero-os-BRANCH-generic.efi" if it's a release
         suffix = 'generic-%s' % self.commit if self.release else "%s-%s" % (self.reponame, self.commit)
         kname = "zero-os-%s-%s.efi" % (self.branch, suffix)
+        self.kernelname = kname
 
         print("[+] exporting kernel: %s" % kname)
 
@@ -71,10 +113,11 @@ class AutobuilderInitramfsThread(threading.Thread):
             return False
 
         print("[+] moving kernel into production")
-        shutil.move(krnl, dest)
+        shutil.copyfile(krnl, dest)
 
         basename = "zero-os-%s.efi" % self.branch if not self.release else "zero-os-%s-generic.efi" % self.branch
         target = os.path.join(self.root.config['kernel-directory'], basename)
+        self.kernellink = basename
 
         if os.path.islink(target) or os.path.isfile(target):
             os.remove(target)
@@ -135,6 +178,7 @@ class AutobuilderInitramfsThread(threading.Thread):
 
             # extract kernel
             self.kernel(tmpdir.name)
+            self.flist_kernel(tmpdir.name)
 
             if self.release:
                 # commit to baseimage
