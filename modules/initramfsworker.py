@@ -43,6 +43,9 @@ class AutobuilderInitramfsThread(threading.Thread):
         images = client.images.list()
 
         for image in images:
+            if not image.attrs['RepoTags']:
+                continue
+
             if image.attrs['RepoTags'][0] == '<none>:<none>':
                 print("[+] cleaner: removing image: %s" % image.id)
                 client.images.remove(image.id)
