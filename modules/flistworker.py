@@ -117,7 +117,7 @@ class AutobuilderFlistThread(threading.Thread):
             tmpgit.name: {'bind': '/%s' % os.path.basename(self.repository), 'mode': 'rw'},
         }
 
-        target = client.containers.run(baseimage, tty=True, detach=True, volumes=volumes, extra_hosts=self.root.config['extra-hosts'])
+        target = client.containers.run(baseimage, tty=True, detach=True, cap_add=["SYS_ADMIN"], volumes=volumes, extra_hosts=self.root.config['extra-hosts'])
 
         self.task.set_status('initializing')
         self.task.set_docker(target.id)
