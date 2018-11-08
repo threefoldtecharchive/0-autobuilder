@@ -1,5 +1,5 @@
 # Zero-OS Auto Builder
-This webservice is a build-process (like Jenkins) tuned for Zero-OS internal development
+This webservice is a build-process (like Jenkins/Travis) tuned for Zero-OS internal development
 
 ## What does it do
 ### Kernel
