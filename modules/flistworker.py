@@ -166,7 +166,12 @@ class AutobuilderFlistThread(threading.Thread):
             self.task.error(str(e))
 
         # end of build process
-        target.remove(force=True)
+        try:
+            target.remove(force=True)
+
+        except docker.errors.APIError:
+            print("[-] could not remove docker, it's probably already removing")
+
         tmpdir.cleanup()
         tmpgit.cleanup()
 
