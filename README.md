@@ -106,3 +106,7 @@ if you want to keep them.
 
 # Documentation
 For more documentation see the [`/docs`](./docs) directory, where you'll find a [table of contents](/docs/SUMMARY.md).
+
+# Repository Owner
+- [Maxime Daniel](https://github.com/maxux), Telegram: [@maxux](http://t.me/maxux)
+
