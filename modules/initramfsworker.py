@@ -165,10 +165,6 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.task.set_status('building')
 
         try:
-            # FIXME: should not happen
-            if not self.release:
-                self.task.execute(target, "sh -c 'cd /0-initramfs && git pull'")
-
             # compiling
             command = "bash /0-initramfs/autobuild/%s %s %s" % (self.script, self.branch, "0-initramfs")
             self.task.execute(target, command)
