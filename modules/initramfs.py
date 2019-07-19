@@ -14,8 +14,8 @@ class AutobuilderInitramfs:
         self.watching = [
             "threefoldtech/0-core",
             "threefoldtech/0-fs",
-            "g8os/initramfs-gig",
             "threefoldtech/0-initramfs",
+            "threefoldtech/zosv2",
         ]
 
         # ensure kernel directory
@@ -104,7 +104,7 @@ class AutobuilderInitramfs:
                 return
 
             print("[+] base image found: %s" % baseimage.tags)
-            return self.build(task, baseimage, "gig-build-cores.sh", False)
+            return self.build(task, baseimage, "tf-build-cores.sh", False)
 
         if task.get('repository') == "threefoldtech/0-fs":
             baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
@@ -114,9 +114,9 @@ class AutobuilderInitramfs:
                 return
 
             print("[+] base image found: %s" % baseimage.tags)
-            return self.build(task, baseimage, "gig-build-g8ufs.sh", False)
+            return self.build(task, baseimage, "tf-build-zfs.sh", False)
 
-        if task.get('repository') == "g8os/initramfs-gig":
+        if task.get('repository') == "threefoldtech/zosv2":
             baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
             if not baseimage:
                 task.error('No base image found for branch: %s' % task.get('branch'))
@@ -124,10 +124,11 @@ class AutobuilderInitramfs:
                 return
 
             print("[+] base image found: %s" % baseimage.tags)
-            return self.build(task, baseimage, "gig-build-extensions.sh", False)
+            return self.build(task, baseimage, "tf-build-modules.sh", False)
+
 
         if task.get('repository') == "threefoldtech/0-initramfs":
-            return self.build(task, "ubuntu:16.04", "gig-build.sh", True)
+            return self.build(task, "ubuntu:16.04", "tf-build.sh", True)
 
         task.error("Unknown kernel repository, we don't follow this one.")
         task.destroy()
