@@ -70,7 +70,7 @@ function elapsedtime(now, started) {
     minutes = parseInt((now - started) / 60);
     seconds = ((now - started) % 60).toFixed(0);
 
-    return '<strong>Build time</strong>: ' + minutes + ' minutes ' + seconds + ' seconds ago';
+    return '<strong>Build time</strong>: ' + minutes + ' minutes ' + seconds + ' seconds';
 }
 
 function update_times() {
