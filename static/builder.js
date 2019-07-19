@@ -66,11 +66,20 @@ function progress_update(payload) {
         progress_update_line(pid, lines[i]);
 }
 
+function plurial(word, value) {
+    if(value < 2)
+        return word;
+
+    return word + 's';
+}
+
 function elapsedtime(now, started) {
     minutes = parseInt((now - started) / 60);
     seconds = ((now - started) % 60).toFixed(0);
 
-    return '<strong>Build time</strong>: ' + minutes + ' minutes ' + seconds + ' seconds';
+    return '<strong>Build time</strong>: ' +
+        minutes + ' ' + plurial('minute', minutes) + ' ' +
+        seconds + ' ' + plurial('second', seconds);
 }
 
 function update_times() {
