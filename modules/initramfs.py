@@ -128,7 +128,7 @@ class AutobuilderInitramfs:
 
 
         if task.get('repository') == "threefoldtech/0-initramfs":
-            return self.build(task, "ubuntu:16.04", "tf-build.sh", True)
+            return self.build(task, "ubuntu:18.04", "tf-build.sh", True)
 
         task.error("Unknown kernel repository, we don't follow this one.")
         task.destroy()
