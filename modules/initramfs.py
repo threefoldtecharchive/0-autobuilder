@@ -15,7 +15,7 @@ class AutobuilderInitramfs:
             "threefoldtech/0-core",
             "threefoldtech/0-fs",
             "threefoldtech/0-initramfs",
-            "threefoldtech/zosv2",
+            # "threefoldtech/zosv2",
         ]
 
         # ensure kernel directory
