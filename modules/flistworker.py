@@ -5,6 +5,7 @@ import threading
 import docker
 import traceback
 import subprocess
+import time
 
 class AutobuilderFlistThread(threading.Thread):
     """
@@ -117,7 +118,16 @@ class AutobuilderFlistThread(threading.Thread):
             tmpgit.name: {'bind': '/%s' % os.path.basename(self.repository), 'mode': 'rw'},
         }
 
-        target = client.containers.run(baseimage, tty=True, detach=True, cap_add=["SYS_ADMIN"], volumes=volumes, extra_hosts=self.root.config['extra-hosts'])
+        target = client.containers.run(
+            baseimage,
+            tty=True,
+            detach=True,
+            mem_limit="16g",
+            cap_add=["SYS_ADMIN"],
+            volumes=volumes,
+            extra_hosts=self.root.config['extra-hosts'],
+            name="autobuilder-%d" % int(time.time())
+        )
 
         self.task.set_status('initializing')
         self.task.set_docker(target.id)
