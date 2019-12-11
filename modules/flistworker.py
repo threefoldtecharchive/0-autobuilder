@@ -126,7 +126,7 @@ class AutobuilderFlistThread(threading.Thread):
             cap_add=["SYS_ADMIN"],
             volumes=volumes,
             extra_hosts=self.root.config['extra-hosts'],
-            name="autobuilder-%d" % int(time.time())
+            name="%s%d" % (self.root.config['flist-autobuilder-prefix'], int(time.time()))
         )
 
         self.task.set_status('initializing')
