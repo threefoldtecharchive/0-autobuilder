@@ -14,7 +14,7 @@ class AutobuilderMaintenance():
         now = datetime.now(timezone.utc)
 
         for container in containers:
-            if not container.name.startswith("autobuilder-"):
+            if not container.name.startswith(config['flist-autobuilder-prefix']):
                 # print("[+] container: skipping: %s" % container.name)
                 continue
 
