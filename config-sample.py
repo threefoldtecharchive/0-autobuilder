@@ -48,5 +48,11 @@ config = {
     'websocket-port': 3333,
 
     # Extra hosts entries to add to containers
-    'extra-hosts': {'my.custom.site': '1.2.3.4'}
+    'extra-hosts': {'my.custom.site': '1.2.3.4'},
+
+    # maximum docker execution time in minutes
+    'maximum-execution-time': 45,
+
+    # docker name prefix for flist autobuilders
+    'flist-autobuilder-prefix': 'autobuilder-',
 }
