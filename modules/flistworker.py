@@ -6,6 +6,7 @@ import docker
 import traceback
 import subprocess
 import time
+import random
 
 class AutobuilderFlistThread(threading.Thread):
     """
@@ -32,6 +33,8 @@ class AutobuilderFlistThread(threading.Thread):
 
         self.default_baseimage = self.root.monitor.default_baseimage
         self.default_archives = self.root.monitor.default_archives
+
+        random.seed()
 
     def _flist_generic(self, tag=None):
         repository = self.repository if not tag else '%s-%s' % (self.repository, tag)
@@ -126,7 +129,7 @@ class AutobuilderFlistThread(threading.Thread):
             cap_add=["SYS_ADMIN"],
             volumes=volumes,
             extra_hosts=self.root.config['extra-hosts'],
-            name="%s%d" % (self.root.config['flist-autobuilder-prefix'], int(time.time()))
+            name="%s%d-%d" % (self.root.config['flist-autobuilder-prefix'], int(time.time()), int(random.random() * 100000))
         )
 
         self.task.set_status('initializing')
