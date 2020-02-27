@@ -4,6 +4,7 @@ import shutil
 import docker
 import traceback
 import tarfile
+import random
 import threading
 
 class AutobuilderInitramfsThread(threading.Thread):
@@ -146,7 +147,19 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.task.set_baseimage(self.baseimagename)
 
         volumes = {tmpdir.name: {'bind': '/target', 'mode': 'rw'}}
-        target = client.containers.run(self.baseimage, tty=True, detach=True, volumes=volumes, extra_hosts=self.root.config['extra-hosts'])
+
+        now = int(time.time())
+        rndval = int(random.random() * 100000)
+        name = "%s%d-initramfs-%d" % (self.root.config['flist-autobuilder-prefix'], now, rndval)
+
+        target = client.containers.run(
+            self.baseimage,
+            tty=True,
+            detach=True,
+            volumes=volumes,
+            extra_hosts=self.root.config['extra-hosts'],
+            name=name
+        )
 
         self.task.set_status('initializing')
         self.task.set_docker(target.id)

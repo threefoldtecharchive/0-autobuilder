@@ -121,6 +121,10 @@ class AutobuilderFlistThread(threading.Thread):
             tmpgit.name: {'bind': '/%s' % os.path.basename(self.repository), 'mode': 'rw'},
         }
 
+        now = int(time.time())
+        rndval = int(random.random() * 100000)
+        name = "%s%d-%d" % (self.root.config['flist-autobuilder-prefix'], now, rndval)
+
         target = client.containers.run(
             baseimage,
             tty=True,
@@ -129,7 +133,7 @@ class AutobuilderFlistThread(threading.Thread):
             cap_add=["SYS_ADMIN"],
             volumes=volumes,
             extra_hosts=self.root.config['extra-hosts'],
-            name="%s%d-%d" % (self.root.config['flist-autobuilder-prefix'], int(time.time()), int(random.random() * 100000))
+            name=name
         )
 
         self.task.set_status('initializing')
