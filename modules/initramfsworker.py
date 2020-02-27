@@ -5,6 +5,7 @@ import docker
 import traceback
 import tarfile
 import random
+import time
 import threading
 
 class AutobuilderInitramfsThread(threading.Thread):
