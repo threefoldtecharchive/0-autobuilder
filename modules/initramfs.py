@@ -12,7 +12,7 @@ class AutobuilderInitramfs:
         self.root = components
 
         self.watching = [
-            "threefoldtech/0-core",
+            # "threefoldtech/0-core",
             "threefoldtech/0-fs",
             "threefoldtech/0-initramfs",
             # "threefoldtech/zosv2",
@@ -76,6 +76,8 @@ class AutobuilderInitramfs:
         if payload["deleted"] and len(payload['commits']) == 0:
             print("[-] this is deleting push, skipping")
             return "DELETED"
+
+        print(payload)
 
         task = self.root.buildio.create()
         task.set_from_push(payload)
