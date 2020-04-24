@@ -39,7 +39,7 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.branch = task.get('branch')
         self.reponame = os.path.basename(task.get('repository'))
         self.commit = task.get('commit')[0:10]
-        self.release = generic
+        self.release = release
         self.generic = generic
         self.root = components
 
