@@ -49,13 +49,13 @@ class AutobuilderInitramfs:
         # fallback to master
         return self.imagefrom(client, repository, "master")
 
-    def build(self, task, baseimage, script, release, generic):
+    def build(self, task, baseimage, script, generic, release):
         """
         Start a new build-thread
         We use threads to avoid time-out in webhook side, as soon as the build
         is authorized, we confirm the reception
         """
-        builder = AutobuilderInitramfsThread(task, baseimage, script, release, generic, self.root)
+        builder = AutobuilderInitramfsThread(task, baseimage, script, generic, release, self.root)
         builder.start()
 
         return "STARTED"

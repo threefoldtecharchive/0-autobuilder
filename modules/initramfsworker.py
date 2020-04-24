@@ -19,7 +19,7 @@ class AutobuilderInitramfsThread(threading.Thread):
      - extract kernel from container
      - move kernel to kernel directory
     """
-    def __init__(self, task, baseimage, script, release, generic, components):
+    def __init__(self, task, baseimage, script, generic, release, components):
         threading.Thread.__init__(self)
 
         if type(baseimage) is str:
@@ -39,7 +39,7 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.branch = task.get('branch')
         self.reponame = os.path.basename(task.get('repository'))
         self.commit = task.get('commit')[0:10]
-        self.release = release
+        self.release = generic
         self.generic = generic
         self.root = components
 
