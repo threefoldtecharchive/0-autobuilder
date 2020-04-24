@@ -49,13 +49,13 @@ class AutobuilderInitramfs:
         # fallback to master
         return self.imagefrom(client, repository, "master")
 
-    def build(self, task, baseimage, script, release):
+    def build(self, task, baseimage, script, release, generic):
         """
         Start a new build-thread
         We use threads to avoid time-out in webhook side, as soon as the build
         is authorized, we confirm the reception
         """
-        builder = AutobuilderInitramfsThread(task, baseimage, script, release, self.root)
+        builder = AutobuilderInitramfsThread(task, baseimage, script, release, generic, self.root)
         builder.start()
 
         return "STARTED"
@@ -81,6 +81,9 @@ class AutobuilderInitramfs:
 
         task = self.root.buildio.create()
         task.set_from_push(payload)
+
+        # if it's a tag, set as release build
+        release = True if '/tags/' in payload['ref'] else False
 
         # connecting docker
         client = docker.from_env()
@@ -118,7 +121,7 @@ class AutobuilderInitramfs:
                 return
 
             print("[+] base image found: %s" % baseimage.tags)
-            return self.build(task, baseimage, "tf-build-zfs.sh", False)
+            return self.build(task, baseimage, "tf-build-zfs.sh", False, release)
 
         """
         if task.get('repository') == "threefoldtech/zosv2":
@@ -133,7 +136,7 @@ class AutobuilderInitramfs:
         """
 
         if task.get('repository') == "threefoldtech/0-initramfs":
-            return self.build(task, "ubuntu:18.04", "tf-build.sh", True)
+            return self.build(task, "ubuntu:18.04", "tf-build.sh", True, release)
 
         task.error("Unknown kernel repository, we don't follow this one.")
         task.destroy()

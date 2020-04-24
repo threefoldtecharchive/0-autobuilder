@@ -19,7 +19,7 @@ class AutobuilderInitramfsThread(threading.Thread):
      - extract kernel from container
      - move kernel to kernel directory
     """
-    def __init__(self, task, baseimage, script, release, components):
+    def __init__(self, task, baseimage, script, release, generic, components):
         threading.Thread.__init__(self)
 
         if type(baseimage) is str:
@@ -40,6 +40,7 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.reponame = os.path.basename(task.get('repository'))
         self.commit = task.get('commit')[0:10]
         self.release = release
+        self.generic = generic
         self.root = components
 
         self.kernelname = None
@@ -96,11 +97,11 @@ class AutobuilderInitramfsThread(threading.Thread):
     def kernel(self, tmpsource):
         """
         Extract the kernel from a container
-         - if release is True, kernel is compiled from initramfs
+         - if generic is True, kernel is compiled from initramfs
          - otherwise it's compiled from a core change
         """
-        # format kernel "zero-os-BRANCH-generic.efi" if it's a release
-        suffix = 'generic-%s' % self.commit if self.release else "%s-%s" % (self.reponame, self.commit)
+        # format kernel "zero-os-BRANCH-generic.efi" if it's generic
+        suffix = 'generic-%s' % self.commit if self.generic else "%s-%s" % (self.reponame, self.commit)
         kname = "zero-os-%s-%s.efi" % (self.branch, suffix)
         self.kernelname = kname
 
@@ -117,7 +118,7 @@ class AutobuilderInitramfsThread(threading.Thread):
         print("[+] moving kernel into production")
         shutil.copyfile(krnl, dest)
 
-        basename = "zero-os-%s.efi" % self.branch if not self.release else "zero-os-%s-generic.efi" % self.branch
+        basename = "zero-os-%s.efi" % self.branch if not self.generic else "zero-os-%s-generic.efi" % self.branch
         target = os.path.join(self.root.config['kernel-directory'], basename)
         self.kernellink = basename
 
@@ -167,7 +168,7 @@ class AutobuilderInitramfsThread(threading.Thread):
 
         self.task.pending()
 
-        if self.release:
+        if self.generic:
             self.task.notice('Preparing system')
             self.task.execute(target, "apt-get update")
             self.task.execute(target, "apt-get install -y git")
@@ -179,8 +180,10 @@ class AutobuilderInitramfsThread(threading.Thread):
         self.task.set_status('building')
 
         try:
+            releaseflag = "release" if self.release else ""
+
             # compiling
-            command = "bash /0-initramfs/autobuild/%s %s %s" % (self.script, self.branch, "0-initramfs")
+            command = "bash /0-initramfs/autobuild/%s %s %s %s" % (self.script, self.branch, "0-initramfs", releaseflag)
             self.task.execute(target, command)
 
             if not os.path.isfile(os.path.join(tmpdir.name, "vmlinuz.efi")):
@@ -190,7 +193,7 @@ class AutobuilderInitramfsThread(threading.Thread):
             self.kernel(tmpdir.name)
             self.flist_kernel(tmpdir.name)
 
-            if self.release:
+            if self.generic:
                 # commit to baseimage
                 self.task.set_status('committing')
                 target.commit(self.repository, self.branch)
