@@ -83,7 +83,8 @@ class AutobuilderInitramfs:
         task.set_from_push(payload)
 
         # if it's a tag, set as release build
-        release = True if '/tags/' in payload['ref'] else False
+        release = payload['ref'].startswith("refs/tags")
+        print("[+] release mode: %s" % release)
 
         # connecting docker
         client = docker.from_env()
