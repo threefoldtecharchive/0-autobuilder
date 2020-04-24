@@ -98,6 +98,7 @@ class AutobuilderInitramfs:
         """
 
         # This is a little bit hardcoded for our side
+        """
         if task.get('repository') == "threefoldtech/0-core":
             baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
             if not baseimage:
@@ -107,6 +108,7 @@ class AutobuilderInitramfs:
 
             print("[+] base image found: %s" % baseimage.tags)
             return self.build(task, baseimage, "tf-build-cores.sh", False)
+        """
 
         if task.get('repository') == "threefoldtech/0-fs":
             baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
@@ -118,6 +120,7 @@ class AutobuilderInitramfs:
             print("[+] base image found: %s" % baseimage.tags)
             return self.build(task, baseimage, "tf-build-zfs.sh", False)
 
+        """
         if task.get('repository') == "threefoldtech/zosv2":
             baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
             if not baseimage:
@@ -127,7 +130,7 @@ class AutobuilderInitramfs:
 
             print("[+] base image found: %s" % baseimage.tags)
             return self.build(task, baseimage, "tf-build-modules.sh", False)
-
+        """
 
         if task.get('repository') == "threefoldtech/0-initramfs":
             return self.build(task, "ubuntu:18.04", "tf-build.sh", True)
