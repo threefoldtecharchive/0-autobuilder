@@ -12,10 +12,8 @@ class AutobuilderInitramfs:
         self.root = components
 
         self.watching = [
-            # "threefoldtech/0-core",
             "threefoldtech/0-fs",
             "threefoldtech/0-initramfs",
-            # "threefoldtech/zosv2",
         ]
 
         # ensure kernel directory
@@ -92,28 +90,8 @@ class AutobuilderInitramfs:
         print("[+] repository: %s, branch: %s" % (task.get('repository'), task.get('branch')))
 
         # checking for existing tasks
-        """
-        FIXME FIXME FIXME
-
-        if buildio.status.get(shortname):
-            if status[shortname]['status'] not in ['success', 'error']:
-                print("[-] task already running, ignoring")
-                return "BUSY"
-        """
-
         # This is a little bit hardcoded for our side
         """
-        if task.get('repository') == "threefoldtech/0-core":
-            baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
-            if not baseimage:
-                task.error('No base image found for branch: %s' % task.get('branch'))
-                task.destroy()
-                return
-
-            print("[+] base image found: %s" % baseimage.tags)
-            return self.build(task, baseimage, "tf-build-cores.sh", False)
-        """
-
         if task.get('repository') == "threefoldtech/0-fs":
             baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
             if not baseimage:
@@ -123,18 +101,9 @@ class AutobuilderInitramfs:
 
             print("[+] base image found: %s" % baseimage.tags)
             return self.build(task, baseimage, "tf-build-zfs.sh", False, release)
-
         """
-        if task.get('repository') == "threefoldtech/zosv2":
-            baseimage = self.imagefrom(client, "threefoldtech/0-initramfs", task.get('branch'))
-            if not baseimage:
-                task.error('No base image found for branch: %s' % task.get('branch'))
-                task.destroy()
-                return
-
-            print("[+] base image found: %s" % baseimage.tags)
-            return self.build(task, baseimage, "tf-build-modules.sh", False)
-        """
+        if task.get('repository') == "threefoldtech/0-fs":
+            return self.build(task, "ubuntu:18.04", "tf-build-zfs.sh", True, False)
 
         if task.get('repository') == "threefoldtech/0-initramfs":
             return self.build(task, "ubuntu:18.04", "tf-build.sh", True, release)

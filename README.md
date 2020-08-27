@@ -5,7 +5,6 @@ This webservice is a build-process (like Jenkins/Travis) tuned for Zero-OS inter
 ### Kernel
 This service autobuild a kernel when someone push on theses repositories:
 - `threefoldtech/0-initramfs`
-- `threefoldtech/0-core`
 - `threefoldtech/0-fs`
 
 Theses repo have github's webhook configured to trigger on push.
